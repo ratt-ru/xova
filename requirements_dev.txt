@@ -1,0 +1,9 @@
+pytest==3.4.2
+cookiecutter>=1.4.0
+
+bump2version
+wheel
+flake8
+Sphinx==1.7.5
+sphinx-rtd-theme
+numpydoc==0.7.0
