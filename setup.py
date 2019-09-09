@@ -11,7 +11,9 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ ]
+requirements = ['codex-africanus==0.1.8',
+                'dask-ms==0.2.0-rc2',
+                'loguru']
 
 setup_requirements = ['pytest-runner', ]
 
@@ -31,6 +33,9 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     description="Measurement Set Averager",
+    entry_points={
+        'console_scripts': ['xova=xova.apps.xova.app:main'],
+    },
     install_requires=requirements,
     license="BSD license",
     long_description=readme + '\n\n' + history,
