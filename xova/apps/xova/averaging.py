@@ -110,23 +110,14 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
     return Dataset(out_ds)
 
 
-def average_main(main_ds, ddid_ds, spw_ds,
-                 time_bin_secs, chan_bin_size,
-                 group_row_chunks,
-                 override_flag_row):
+def average_main(main_ds, time_bin_secs, chan_bin_size,
+                 group_row_chunks, override_flag_row):
     """
     Parameters
     ----------
     main_ds : list of Datasets
         Dataset containing Measurement Set columns.
         Should have a DATA_DESC_ID attribute.
-    ddid_ds : Dataset
-        Single Dataset describing the complete DATA_DESCRIPTION
-        sub table.
-    spw_ds : list of Datasets
-        Dataset for each spectral window
-    pol_ds : list of Datasets
-        Datasets for each polarization
     time_bin_secs : float
         Number of time bins to average together
     chan_bin_size : int
@@ -143,8 +134,6 @@ def average_main(main_ds, ddid_ds, spw_ds,
     """
     # Get the appropriate spectral window and polarisation Dataset
     # Must have a single DDID table
-    assert len(ddid_ds) == 1
-    ddid_ds = ddid_ds[0]
 
     output_ds = []
 
@@ -152,8 +141,6 @@ def average_main(main_ds, ddid_ds, spw_ds,
         if override_flag_row is True:
             ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
 
-        spw_id = ddid_ds.SPECTRAL_WINDOW_ID.data[ds.DATA_DESC_ID]
-        spw = spw_ds[spw_id]
         dv = ds.data_vars
 
         # Default kwargs
@@ -236,4 +223,3 @@ def average_spw(spw_ds, chan_bin_size):
         new_spw_ds.append(Dataset(dv))
 
     return new_spw_ds
-

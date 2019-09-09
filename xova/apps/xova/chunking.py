@@ -28,6 +28,8 @@ def _chunk(x_chunk, axis, keepdims):
 
 
 def _time_int_combine(x_chunk, axis, keepdims):
+    """ Intermediate reduction step """
+
     # x_chunk is a (label, interval_sum, count) tuple
     if isinstance(x_chunk, tuple):
         time, interval_sums, counts = x_chunk
@@ -52,6 +54,7 @@ def _time_int_combine(x_chunk, axis, keepdims):
 
 
 def _time_int_agg(x_chunk, axis, keepdims):
+    """ Final reduction step """
     utime, interval_sum, counts = _time_int_combine(x_chunk, axis, keepdims)
     return utime, counts, interval_sum / counts
 
@@ -106,29 +109,34 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
 
     # Work out the unique times, average intervals for those times
     # and the frequency of those times
-    (ds_utime, ds_avg_intervals,
-     ds_counts, ds_monotonicity_checks) = dask.compute(utimes,
-                                                       interval_avg,
-                                                       counts,
-                                                       monotonicity_checks)
+    (ds_utime,
+     ds_avg_intervals,
+     ds_counts,
+     ds_monotonicity_checks) = dask.compute(utimes,
+                                            interval_avg,
+                                            counts,
+                                            monotonicity_checks)
 
     if not all(ds_monotonicity_checks):
-        raise ValueError("TIME is not monotonically increasing. This "
-                         "is a requirement.")
+        raise ValueError("TIME is not monotonically increasing. "
+                         "This is required.")
 
     # Produce row and time chunking strategies for each dataset
     ds_row_chunks = []
     ds_time_chunks = []
+    ds_interval_secs = []
 
     it = zip(ds_utime, ds_avg_intervals, ds_counts)
     for di, (utime, avg_interval, counts) in enumerate(it):
         # Maintain row and time chunks for this dataset
         row_chunks = []
         time_chunks = []
+        interval_secs = []
 
         # Start out with first entries
         bin_rows = counts[0]
         bin_times = 1
+        bin_secs = avg_interval[0]
 
         dsit = enumerate(zip(utime[1:], avg_interval[1:], counts[1:]))
         for ti, (ut, avg_int, count) in dsit:
@@ -154,32 +162,49 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
             if next_rows < max_row_chunks:
                 bin_rows = next_rows
                 bin_times += 1
+                bin_secs += avg_int
             # Otherwise finalize this bin and
             # start a new one with the counts
             # we were trying to add
             else:
                 row_chunks.append(bin_rows)
                 time_chunks.append(bin_times)
+                interval_secs.append(bin_secs)
                 bin_rows = count
                 bin_times = 1
+                bin_secs = avg_int
 
         # Finish any remaining bins
         if bin_rows > 0:
             assert bin_times > 0
             row_chunks.append(bin_rows)
             time_chunks.append(bin_times)
+            interval_secs.append(bin_secs)
 
-        ds_row_chunks.append(tuple(row_chunks))
-        ds_time_chunks.append(tuple(time_chunks))
+        row_chunks = tuple(row_chunks)
+        time_chunks = tuple(time_chunks)
+        interval_secs = tuple(interval_secs)
+        ds_row_chunks.append(row_chunks)
+        ds_time_chunks.append(time_chunks)
+        ds_interval_secs.append(interval_secs)
 
-    for ds, ds_row_chunk in zip(datasets, ds_row_chunks):
+    logger.info("Dataset Chunking: (r)ow - (t)imes - (s)econds")
+
+    it = zip(datasets, ds_row_chunks, ds_time_chunks, ds_interval_secs)
+    for di, (ds, ds_rcs, ds_tcs, ds_int_secs) in enumerate(it):
         ds_rows = ds.dims['row']
-        ds_crows = sum(ds_row_chunk)
+        ds_crows = sum(ds_rcs)
 
         if not ds_rows == ds_crows:
             raise ValueError("Number of dataset rows %d "
                              "does not match the sum %d "
                              "of the row chunks %s"
-                             % (ds_rows, ds_crows, ds_row_chunk))
+                             % (ds_rows, ds_crows, ds_rcs))
+
+        log_str = ", ".join("(%dr,%dt,%.1fs)" % (rc, tc, its)
+                            for rc, tc, its
+                            in zip(*(ds_rcs, ds_tcs, ds_int_secs)))
+
+        logger.info("Dataset {d}: {s}", d=di, s=log_str)
 
     return ds_row_chunks, ds_time_chunks

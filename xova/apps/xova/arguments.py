@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import argparse
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import shutil
 import os
 
 from loguru import logger
@@ -44,8 +42,9 @@ def log_args(args):
     logger.info("\tAveraging {tbs} seconds together", tbs=args.time_bin_secs)
     logger.info("\tAveraging {cbs} channels together", cbs=args.chan_bin_size)
 
-    logger.info("\tApproximately {rc} rows will be averaged together "
-                "while avoiding splitting unique times ", rc=args.row_chunks)
+    logger.info("\tApproximately {rc} rows will be averaged "
+                "as independent chunks. Unique times will not be "
+                "split across chunks.", rc=args.row_chunks)
 
     if args.group_row_chunks:
         logger.info("\tGrouping {rc} averaged row chunks "

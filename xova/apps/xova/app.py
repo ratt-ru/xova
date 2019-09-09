@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
 
+from contextlib import ExitStack
 import os
 import shutil
 import sys
+
+try:
+    import bokeh  # noqa
+except ImportError:
+    can_profile = False
+else:
+    can_profile = True
 
 import dask
 from daskms import xds_from_ms, xds_from_table, xds_to_table
@@ -39,15 +47,15 @@ class Application(object):
         self._create_output_ms(args)
 
         row_chunks, time_chunks = self._derive_row_chunking(args)
-        main_ds, spw_ds, ddid_ds, subtables = self._input_datasets(args,
-                                                                   row_chunks)
+        (main_ds, spw_ds,
+         ddid_ds, subtables) = self._input_datasets(args, row_chunks)
 
         # Set up Main MS data averaging
-        main_ds = avg = average_main(main_ds, ddid_ds, spw_ds,
-                                     args.time_bin_secs,
-                                     args.chan_bin_size,
-                                     args.group_row_chunks,
-                                     args.override_flag_row)
+        main_ds = average_main(main_ds,
+                               args.time_bin_secs,
+                               args.chan_bin_size,
+                               args.group_row_chunks,
+                               args.override_flag_row)
 
         main_writes = xds_to_table(main_ds, args.output, "ALL")
 
@@ -56,15 +64,32 @@ class Application(object):
         spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
         spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
 
-        copy_writes = copy_subtables(args.ms, args.output, subtables)
+        copy_subtables(args.ms, args.output, subtables)
 
-        from dask.diagnostics import ProgressBar, Profiler, visualize
+        self._execute_graph(main_writes, spw_writes)
 
-        with ProgressBar(), Profiler() as prof:
-            dask.compute(main_writes, spw_writes, copy_writes)
+    def _execute_graph(self, *writes):
+        # Set up Profilers and Progress Bars
+        with ExitStack() as stack:
+            profilers = []
+
+            if can_profile:
+                from dask.diagnostics import (Profiler, CacheProfiler,
+                                              ResourceProfiler, visualize)
+
+                profilers.append(stack.enter_context(Profiler()))
+                profilers.append(stack.enter_context(CacheProfiler()))
+                profilers.append(stack.enter_context(ResourceProfiler()))
+
+            if sys.stdout.isatty():
+                from dask.diagnostics import ProgressBar
+                stack.enter_context(ProgressBar())
+
+            dask.compute(*writes)
             logger.info("Averaging Complete")
 
-        visualize([prof])
+        if can_profile:
+            visualize(profilers)
 
     def _create_output_ms(self, args):
         # Check for existence of output
