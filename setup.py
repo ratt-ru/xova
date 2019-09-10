@@ -11,8 +11,8 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['codex-africanus==0.1.8',
-                'dask-ms==0.2.0-rc2',
+requirements = ['codex-africanus == 0.1.8',
+                'dask-ms == 0.2.0-rc3',
                 'loguru']
 
 setup_requirements = ['pytest-runner', ]
