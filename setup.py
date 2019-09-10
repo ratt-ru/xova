@@ -11,7 +11,10 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['codex-africanus == 0.1.8',
+requirements = ["codex-africanus[dask]"
+                "@git+https://github.com/ska-sa/codex-africanus.git"
+                "@master",
+
                 'dask-ms == 0.2.0-rc3',
                 'loguru']
 
@@ -42,7 +45,7 @@ setup(
     include_package_data=True,
     keywords='xova',
     name='xova',
-    packages=find_packages(include=['xova']),
+    packages=find_packages(),
     python_requires=">=3.5",
     setup_requires=setup_requirements,
     test_suite='tests',
