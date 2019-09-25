@@ -55,7 +55,7 @@ class Application(object):
                                args.time_bin_secs,
                                args.chan_bin_size,
                                args.group_row_chunks,
-                               args.override_flag_row)
+                               args.respect_flag_row)
 
         main_writes = xds_to_table(main_ds, args.output, "ALL")
 
