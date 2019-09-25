@@ -111,7 +111,7 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
 
 
 def average_main(main_ds, time_bin_secs, chan_bin_size,
-                 group_row_chunks, override_flag_row):
+                 group_row_chunks, respect_flag_row):
     """
     Parameters
     ----------
@@ -124,8 +124,9 @@ def average_main(main_ds, time_bin_secs, chan_bin_size,
         Number of channels to average together
     group_row_chunks : int, optional
         Number of row chunks to concatenate together
-    override_flag_row : bool
-        Override FLAG_ROW with FLAG
+    respect_flag_row : bool
+        Respect FLAG_ROW instead of using FLAG
+        for computing row flags.
 
     Returns
     -------
@@ -138,7 +139,7 @@ def average_main(main_ds, time_bin_secs, chan_bin_size,
     output_ds = []
 
     for ds in main_ds:
-        if override_flag_row is True:
+        if respect_flag_row is False:
             ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
 
         dv = ds.data_vars

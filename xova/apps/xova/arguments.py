@@ -26,12 +26,10 @@ def create_parser():
     p.add_argument("-grc", "--group-row-chunks", type=int, default=4,
                    help="Number of averaged row chunks to group together "
                         "when writing data to the output Measurement Set. ")
-    p.add_argument("-ofr", "--override-flag-row", action="store_true",
+    p.add_argument("-rfr", "--respect-flag-row", action="store_true",
                    default=False,
-                   help="Override FLAG_ROW values with FLAG. "
-                        "The averager expects FLAG_ROW to be consistent "
-                        "with FLAG. This option overrides FLAG_ROW "
-                        "with a np.all(FLAG, axis=(1,2)) style reduction.")
+                   help="Respects FLAG_ROW instead of overriding the column "
+                        "values with a np.all(FLAG, axis=(1,2)) reduction.")
 
     return p
 
@@ -53,8 +51,11 @@ def log_args(args):
     if args.force is True:
         logger.warning("\tOverwriting '{output}'", output=args.output)
 
-    if args.override_flag_row is True:
-        logger.warning("\tOverriding FLAG_ROW with FLAG values")
+    if args.respect_flag_row is True:
+        logger.info("\tRespecting FLAG_ROW values")
+    else:
+        logger.warning("\tComputing FLAG_ROW values "
+                       "via any(FLAG, axis=(1,2))")
 
 
 def postprocess_args(args):

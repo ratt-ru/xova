@@ -55,7 +55,7 @@ class Application(object):
                                args.time_bin_secs,
                                args.chan_bin_size,
                                args.group_row_chunks,
-                               args.override_flag_row)
+                               args.respect_flag_row)
 
         main_writes = xds_to_table(main_ds, args.output, "ALL")
 
@@ -118,11 +118,10 @@ class Application(object):
                                             column_keywords=True,
                                             chunks=chunks)
 
-        # Figure out non SPW sub-tables to just copy
+        # Figure out non SPW + SORTED sub-tables to just copy
         subtables = {k for k, v in tabkw.items() if
-                     k != "SPECTRAL_WINDOW" and
-                     isinstance(v, str) and
-                     v.startswith("Table: ")}
+                     k not in ("SPECTRAL_WINDOW", "SORTED_TABLE") and
+                     isinstance(v, str) and v.startswith("Table: ")}
 
         spw_ds = xds_from_table("::".join((args.ms, "SPECTRAL_WINDOW")),
                                 group_cols="__row__")
