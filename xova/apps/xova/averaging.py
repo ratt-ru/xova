@@ -209,7 +209,8 @@ def average_spw(spw_ds, chan_bin_size):
         avg = dask_chan_avg(chan_meta, chan_freq=chan_freq,
                             chan_width=chan_width,
                             effective_bw=effective_bw,
-                            resolution=resolution)
+                            resolution=resolution,
+                            chan_bin_size=chan_bin_size)
 
         num_chan = da.full((1,), avg.chan_freq.shape[0], dtype=np.int32)
 
