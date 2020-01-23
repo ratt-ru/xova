@@ -10,6 +10,14 @@ import numpy as np
 
 from xova.apps.xova.utils import id_full_like
 
+def _safe_concatenate(*args):
+    # Handle list with single numpy array case,
+    # tuple unpacking fails on it
+    if len(args) == 1 and isinstance(args[0], np.ndarray):
+        return args[0]
+
+    return np.concatenate(*args)
+
 
 def concatenate_row_chunks(array, group_every=1000):
     """
@@ -23,7 +31,7 @@ def concatenate_row_chunks(array, group_every=1000):
     if len(array.chunks[0]) == 1:
         return array
 
-    data = partial_reduce(np.concatenate, array,
+    data = partial_reduce(_safe_concatenate, array,
                           split_every={0: group_every},
                           reduced_meta=None, keepdims=True)
 
