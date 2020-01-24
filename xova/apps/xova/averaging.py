@@ -173,11 +173,17 @@ def average_main(main_ds, field_ds,
         if scan_numbers and ds.SCAN_NUMBER not in scan_numbers:
             compress = True
 
-        if respect_flag_row is False:
-            ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
-
         if compress:
             logger.warning("Compressing FIELD %d SCAN %d" % (ds.FIELD_ID, ds.SCAN_NUMBER))
+
+            continue
+            # FLAG everything
+            ds = ds.assign(FLAG=(("row", "chan", "corr"), da.ones_like(ds.FLAG.data)),
+                           FLAG_ROW=(("row",), da.ones_like(ds.FLAG_ROW.data)))
+
+        else:
+            if respect_flag_row is False:
+                ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
 
         dv = ds.data_vars
 
@@ -205,8 +211,11 @@ def average_main(main_ds, field_ds,
                                dv['ANTENNA2'].data,
                                **kwargs)
 
+        # Compression of this dataset to a single visibility is required.
+        # At this point, each chunk of the dask array will have been averaged
+        # to a single visibility. Concatenate these chunks into single arrays
+        # and average again
         if compress:
-            # Compress this dataset down to a single flagged
             g = len(avg.time.chunks[0])
             time = concatenate_row_chunks(avg.time, group_every=g)
             interval = concatenate_row_chunks(avg.interval, group_every=g)
@@ -222,7 +231,7 @@ def average_main(main_ds, field_ds,
                 value = concatenate_row_chunks(value, group_every=g)
                 kwargs[c] = value
 
-            kwargs['chan_bin_size'] = 1
+            kwargs['chan_bin_size'] = 1 
             avg = time_and_channel(time, interval, ant1, ant2, **kwargs)
 
 
