@@ -46,14 +46,19 @@ class Application(object):
         log_args(args)
         self._create_output_ms(args)
 
-        row_chunks, time_chunks = self._derive_row_chunking(args)
+        row_chunks, time_chunks, interval_chunks = self._derive_row_chunking(args)
+
         (main_ds, spw_ds,
-         ddid_ds, subtables) = self._input_datasets(args, row_chunks)
+         ddid_ds, field_ds,
+         subtables) = self._input_datasets(args, row_chunks)
 
         # Set up Main MS data averaging
         main_ds = average_main(main_ds,
+                               field_ds,
                                args.time_bin_secs,
                                args.chan_bin_size,
+                               args.fields,
+                               args.scan_numbers,
                                args.group_row_chunks,
                                args.respect_flag_row)
 
@@ -117,7 +122,7 @@ class Application(object):
                                             table_keywords=True,
                                             column_keywords=True,
                                             chunks=chunks)
-
+        
         # Figure out non SPW + SORTED sub-tables to just copy
         subtables = {k for k, v in tabkw.items() if
                      k not in ("SPECTRAL_WINDOW", "SORTED_TABLE") and
@@ -126,8 +131,11 @@ class Application(object):
         spw_ds = xds_from_table("::".join((args.ms, "SPECTRAL_WINDOW")),
                                 group_cols="__row__")
 
+        field_ds = xds_from_table("::".join((args.ms, "FIELD")),
+                                group_cols="__row__")
+
         ddid_ds = xds_from_table("::".join((args.ms, "DATA_DESCRIPTION")))
         assert len(ddid_ds) == 1
         ddid_ds = dask.compute(ddid_ds)[0]
 
-        return main_ds, spw_ds, ddid_ds, subtables
+        return main_ds, spw_ds, ddid_ds, field_ds, subtables

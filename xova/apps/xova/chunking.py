@@ -207,4 +207,4 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
 
         logger.info("Dataset {d}: {s}", d=di, s=log_str)
 
-    return ds_row_chunks, ds_time_chunks
+    return ds_row_chunks, ds_time_chunks, ds_interval_secs

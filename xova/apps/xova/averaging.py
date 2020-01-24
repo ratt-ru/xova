@@ -8,6 +8,8 @@ from dask.array.reductions import partial_reduce
 from daskms import Dataset
 import numpy as np
 
+from loguru import logger
+
 from xova.apps.xova.utils import id_full_like
 
 def _safe_concatenate(*args):
@@ -19,8 +21,17 @@ def _safe_concatenate(*args):
     return np.concatenate(*args)
 
 
-def concatenate_row_chunks(array, group_every=1000):
+def concatenate_row_chunks(array, group_every=4):
     """
+    Parameters
+    ----------
+    array : :class:`dask.array.Array`
+        dask array to average.
+        First dimension must correspond to the MS 'row' dimension
+    group_every : int
+        Number of adjust dask array chunks to group together.
+        Defaults to 4.
+
     When averaging, the output array's are substantially smaller, which
     can affect disk I/O since many small operations are submitted.
     This operation concatenates row chunks together so that more rows
@@ -31,6 +42,9 @@ def concatenate_row_chunks(array, group_every=1000):
     if len(array.chunks[0]) == 1:
         return array
 
+    # Restrict the number of chunks to group to the
+    # actual number of chunks in the array
+    group_every = min(len(array.chunks[0]), group_every)
     data = partial_reduce(_safe_concatenate, array,
                           split_every={0: group_every},
                           reduced_meta=None, keepdims=True)
@@ -53,6 +67,7 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
     ----------
     avg : namedtuple
         Result of :func:`average`
+    compress : bool
     field_id : int
         FIELD_ID for this averaged data
     data_desc_id : int
@@ -118,7 +133,9 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
     return Dataset(out_ds)
 
 
-def average_main(main_ds, time_bin_secs, chan_bin_size,
+def average_main(main_ds, field_ds,
+                 time_bin_secs, chan_bin_size,
+                 fields, scan_numbers,
                  group_row_chunks, respect_flag_row):
     """
     Parameters
@@ -126,10 +143,14 @@ def average_main(main_ds, time_bin_secs, chan_bin_size,
     main_ds : list of Datasets
         Dataset containing Measurement Set columns.
         Should have a DATA_DESC_ID attribute.
+    field_ds : list of Datasets
+        Each Dataset corresponds to a row of the FIELD table.
     time_bin_secs : float
         Number of time bins to average together
     chan_bin_size : int
         Number of channels to average together
+    fields : list
+    scan_numbers : list
     group_row_chunks : int, optional
         Number of row chunks to concatenate together
     respect_flag_row : bool
@@ -141,19 +162,29 @@ def average_main(main_ds, time_bin_secs, chan_bin_size,
     avg
         tuple containing averaged data
     """
-    # Get the appropriate spectral window and polarisation Dataset
-    # Must have a single DDID table
-
     output_ds = []
 
     for ds in main_ds:
+        compress = False
+
+        if fields and ds.FIELD_ID not in fields:
+            compress = True
+
+        if scan_numbers and ds.SCAN_NUMBER not in scan_numbers:
+            compress = True
+
         if respect_flag_row is False:
             ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
 
+        if compress:
+            logger.warning("Compressing FIELD %d SCAN %d" % (ds.FIELD_ID, ds.SCAN_NUMBER))
+
         dv = ds.data_vars
 
-        # Default kwargs
-        kwargs = {'time_bin_secs': time_bin_secs,
+        # Default kwargs. If we're compressing the dataset
+        # choose a very large time value so that each dask array
+        # chunk is averaged down to one row
+        kwargs = {'time_bin_secs': int(2e9) if compress else time_bin_secs,
                   'chan_bin_size': chan_bin_size,
                   'vis': dv['DATA'].data}
 
@@ -173,6 +204,27 @@ def average_main(main_ds, time_bin_secs, chan_bin_size,
                                dv['ANTENNA1'].data,
                                dv['ANTENNA2'].data,
                                **kwargs)
+
+        if compress:
+            # Compress this dataset down to a single flagged
+            g = len(avg.time.chunks[0])
+            time = concatenate_row_chunks(avg.time, group_every=g)
+            interval = concatenate_row_chunks(avg.interval, group_every=g)
+            ant1 = concatenate_row_chunks(avg.antenna1, group_every=g)
+            ant2 = concatenate_row_chunks(avg.antenna2, group_every=g)
+
+            for c in (c.lower() for c in columns + ["VIS"]):
+                value = getattr(avg, c, None)
+
+                if value is None:
+                    continue
+
+                value = concatenate_row_chunks(value, group_every=g)
+                kwargs[c] = value
+
+            kwargs['chan_bin_size'] = 1
+            avg = time_and_channel(time, interval, ant1, ant2, **kwargs)
+
 
         output_ds.append(output_dataset(avg,
                                         ds.FIELD_ID,
