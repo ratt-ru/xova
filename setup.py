@@ -15,7 +15,7 @@ requirements = ["codex-africanus[dask]"
                 "@git+https://github.com/ska-sa/codex-africanus.git"
                 "@master",
 
-                'dask-ms == 0.2.2',
+                'dask-ms >= 0.2.3',
                 'loguru']
 
 setup_requirements = ['pytest-runner', ]
