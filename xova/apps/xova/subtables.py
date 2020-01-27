@@ -22,10 +22,8 @@ def copy_subtables(ms, output, subtables):
 
         # Remove destination folder if it exists
         shutil.rmtree(out_tab, ignore_errors=True)
-        # Ignore the lock file
-        ignore = shutil.ignore_patterns("table.lock")
         # Copy the tree
-        shutil.copytree(in_tab, out_tab, ignore=ignore)
+        shutil.copytree(in_tab, out_tab)
         keywords[subtable] = "Table: " + out_tab
 
     # Need to open with manual locking to interact with dask-ms TableProxies
