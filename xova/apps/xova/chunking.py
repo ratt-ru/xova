@@ -103,7 +103,7 @@ class DatasetGrouper(object):
                                 "is {:3f} but this exceeds the requested "
                                 "number of seconds in a time bin {:3f}s. "
                                 "Consider increasing --time-bin-secs",
-                                ut, di, avg_int, time_bin_secs)
+                                ut, di, avg_int, self.time_bin_secs)
 
                 next_bin_secs = bin_secs + avg_int
 
