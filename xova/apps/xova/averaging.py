@@ -136,7 +136,8 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
 def average_main(main_ds, field_ds,
                  time_bin_secs, chan_bin_size,
                  fields, scan_numbers,
-                 group_row_chunks, respect_flag_row):
+                 group_row_chunks, respect_flag_row,
+                 viscolumn="DATA"):
     """
     Parameters
     ----------
@@ -156,7 +157,8 @@ def average_main(main_ds, field_ds,
     respect_flag_row : bool
         Respect FLAG_ROW instead of using FLAG
         for computing row flags.
-
+    viscolumn: string
+        name of column to average
     Returns
     -------
     avg
@@ -168,10 +170,10 @@ def average_main(main_ds, field_ds,
         compress = False
 
         if fields and ds.FIELD_ID not in fields:
-            compress = True
+            continue
 
         if scan_numbers and ds.SCAN_NUMBER not in scan_numbers:
-            compress = True
+            continue
 
         if compress:
             logger.warning("Compressing FIELD %d SCAN %d" % (ds.FIELD_ID, ds.SCAN_NUMBER))
@@ -192,7 +194,7 @@ def average_main(main_ds, field_ds,
         # chunk is averaged down to one row
         kwargs = {'time_bin_secs': int(2e9) if compress else time_bin_secs,
                   'chan_bin_size': chan_bin_size,
-                  'vis': dv['DATA'].data}
+                  'vis': dv[viscolumn].data}
 
         # Other columns with directly transferable names
         columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',

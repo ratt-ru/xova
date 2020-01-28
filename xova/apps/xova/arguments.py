@@ -94,6 +94,9 @@ def create_parser():
                    default=False,
                    help="Respects FLAG_ROW instead of overriding the column "
                         "values with a np.all(FLAG, axis=(1,2)) reduction.")
+    p.add_argument("-dc", "--data-column", default="CORRECTED_DATA",
+                   type=str,
+                   help="Column to average. Default CORRECTED_DATA")
 
     return p
 
@@ -103,6 +106,7 @@ def log_args(args):
     logger.info("\tAveraging '{ms}' to '{out}'", ms=args.ms, out=args.output)
     logger.info("\tAveraging {tbs} seconds together", tbs=args.time_bin_secs)
     logger.info("\tAveraging {cbs} channels together", cbs=args.chan_bin_size)
+    logger.info("\tAveraging column '{col}' into 'DATA'", col=args.data_column)
 
     logger.info("\tApproximately {rc} rows will be averaged "
                 "as independent chunks. Unique times will not be "

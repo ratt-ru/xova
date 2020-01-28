@@ -60,7 +60,8 @@ class Application(object):
                                args.fields,
                                args.scan_numbers,
                                args.group_row_chunks,
-                               args.respect_flag_row)
+                               args.respect_flag_row,
+                               viscolumn=args.data_column)
 
         main_writes = xds_to_table(main_ds, args.output, "ALL")
 
