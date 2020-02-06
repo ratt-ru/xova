@@ -65,17 +65,20 @@ class DatasetGrouper(object):
         self.max_row_chunks = max_row_chunks
 
     def group(self, ds_utime, ds_avg_intervals, ds_counts):
-        row_chunks, time_chunks, interval_secs = self._group_into_time_bins(
-                                                        ds_utime,
-                                                        ds_avg_intervals,
-                                                        ds_counts)
-        row_chunks, time_chunks, interval_secs = self._group_into_max_row_chunks(
-                                                        row_chunks,
-                                                        time_chunks,
-                                                        interval_secs)
+        (row_chunks,
+         time_chunks,
+         interval_secs) = self._group_into_time_bins(
+                                        ds_utime,
+                                        ds_avg_intervals,
+                                        ds_counts)
+        (row_chunks,
+         time_chunks,
+         interval_secs) = self._group_into_max_row_chunks(
+                                        row_chunks,
+                                        time_chunks,
+                                        interval_secs)
 
         return row_chunks, time_chunks, interval_secs
-
 
     def _group_into_time_bins(self, ds_utime, ds_avg_intervals, ds_counts):
         # Produce row and time chunking strategies for each dataset
@@ -99,11 +102,11 @@ class DatasetGrouper(object):
             for ti, (ut, avg_int, count) in dsit:
                 if avg_int > self.time_bin_secs:
                     logger.warning("The average INTERVAL associated with "
-                                "unique time {:3f} in dataset {:d} "
-                                "is {:3f} but this exceeds the requested "
-                                "number of seconds in a time bin {:3f}s. "
-                                "Consider increasing --time-bin-secs",
-                                ut, di, avg_int, self.time_bin_secs)
+                                   "unique time {:3f} in dataset {:d} "
+                                   "is {:3f} but this exceeds the requested "
+                                   "number of seconds in a time bin {:3f}s. "
+                                   "Consider increasing --time-bin-secs",
+                                   ut, di, avg_int, self.time_bin_secs)
 
                 next_bin_secs = bin_secs + avg_int
 
@@ -138,8 +141,8 @@ class DatasetGrouper(object):
 
         return ds_row_chunks, ds_time_chunks, ds_interval_secs
 
-
-    def _group_into_max_row_chunks(self, row_chunks, time_chunks, interval_secs):
+    def _group_into_max_row_chunks(self, row_chunks,
+                                   time_chunks, interval_secs):
         final_row_chunks = []
         final_time_chunks = []
         final_interval_secs = []
@@ -155,7 +158,9 @@ class DatasetGrouper(object):
             bin_times = ds_time_chunks[0]
             bin_secs = ds_interval_secs[0]
 
-            dsit = enumerate(zip(ds_row_chunks[1:], ds_time_chunks[1:], ds_interval_secs[1:]))
+            dsit = enumerate(zip(ds_row_chunks[1:],
+                                 ds_time_chunks[1:],
+                                 ds_interval_secs[1:]))
             for i, (rc, tc, ints) in dsit:
                 next_bin_rows = bin_rows + rc
 
@@ -183,8 +188,6 @@ class DatasetGrouper(object):
             final_interval_secs.append(agg_interval_secs)
 
         return final_row_chunks, final_time_chunks, final_interval_secs
-
-
 
 
 def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
