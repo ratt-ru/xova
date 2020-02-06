@@ -18,6 +18,10 @@ requirements = ["codex-africanus[dask]"
                 'dask-ms >= 0.2.3',
                 'loguru']
 
+extras_require = {
+    'testing': ['pytest', 'pytest-flake8']
+}
+
 setup_requirements = ['pytest-runner', ]
 
 test_requirements = ['pytest', ]
@@ -31,7 +35,6 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
@@ -39,6 +42,7 @@ setup(
     entry_points={
         'console_scripts': ['xova=xova.apps.xova.app:main'],
     },
+    extras_require=extras_require,
     install_requires=requirements,
     license="BSD license",
     long_description=readme + '\n\n' + history,
@@ -46,7 +50,7 @@ setup(
     keywords='xova',
     name='xova',
     packages=find_packages(),
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
