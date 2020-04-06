@@ -8,13 +8,7 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
-    history = history_file.read()
-
-requirements = ["codex-africanus[dask]"
-                "@git+https://github.com/ska-sa/codex-africanus.git"
-                "@master",
-
+requirements = ['codex-africanus[dask] >= 0.2.1',
                 'dask-ms >= 0.2.3',
                 'loguru']
 
@@ -45,7 +39,8 @@ setup(
     extras_require=extras_require,
     install_requires=requirements,
     license="BSD license",
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
+    long_description_content_type='text/x-rst',
     include_package_data=True,
     keywords='xova',
     name='xova',
