@@ -20,8 +20,17 @@ def _safe_concatenate(*args):
     return np.concatenate(*args)
 
 
-def concatenate_row_chunks(array, group_every=1000):
+def concatenate_row_chunks(array, group_every=4):
     """
+    Parameters
+    ----------
+    array : :class:`dask.array.Array`
+        dask array to average.
+        First dimension must correspond to the MS 'row' dimension
+    group_every : int
+        Number of adjust dask array chunks to group together.
+        Defaults to 4.
+
     When averaging, the output array's are substantially smaller, which
     can affect disk I/O since many small operations are submitted.
     This operation concatenates row chunks together so that more rows
@@ -32,6 +41,8 @@ def concatenate_row_chunks(array, group_every=1000):
     if len(array.chunks[0]) == 1:
         return array
 
+    # Restrict the number of chunks to group to the
+    # actual number of chunks in the array
     group_every = min(len(array.chunks[0]), group_every)
     data = partial_reduce(_safe_concatenate, array,
                           split_every={0: group_every},
@@ -120,44 +131,55 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
     return Dataset(out_ds)
 
 
-def average_main(main_ds, time_bin_secs, chan_bin_size,
-                 group_row_chunks, respect_flag_row):
+def average_main(main_ds, field_ds,
+                 time_bin_secs, chan_bin_size,
+                 fields, scan_numbers,
+                 group_row_chunks, respect_flag_row,
+                 viscolumn="DATA"):
     """
     Parameters
     ----------
     main_ds : list of Datasets
         Dataset containing Measurement Set columns.
         Should have a DATA_DESC_ID attribute.
+    field_ds : list of Datasets
+        Each Dataset corresponds to a row of the FIELD table.
     time_bin_secs : float
         Number of time bins to average together
     chan_bin_size : int
         Number of channels to average together
+    fields : list
+    scan_numbers : list
     group_row_chunks : int, optional
         Number of row chunks to concatenate together
     respect_flag_row : bool
         Respect FLAG_ROW instead of using FLAG
         for computing row flags.
-
+    viscolumn: string
+        name of column to average
     Returns
     -------
     avg
         tuple containing averaged data
     """
-    # Get the appropriate spectral window and polarisation Dataset
-    # Must have a single DDID table
-
     output_ds = []
 
     for ds in main_ds:
+        if fields and ds.FIELD_ID not in fields:
+            continue
+
+        if scan_numbers and ds.SCAN_NUMBER not in scan_numbers:
+            continue
+
         if respect_flag_row is False:
             ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
 
         dv = ds.data_vars
 
-        # Default kwargs
+        # Default kwargs.
         kwargs = {'time_bin_secs': time_bin_secs,
                   'chan_bin_size': chan_bin_size,
-                  'vis': dv['DATA'].data}
+                  'vis': dv[viscolumn].data}
 
         # Other columns with directly transferable names
         columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',

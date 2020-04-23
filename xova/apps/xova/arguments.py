@@ -1,14 +1,83 @@
 # -*- coding: utf-8 -*-
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import (ArgumentParser,
+                      ArgumentDefaultsHelpFormatter,
+                      ArgumentError)
 import os
 
 from loguru import logger
 
 
+def _parse_fields(field_str):
+    if field_str == "":
+        return []
+
+    fields = []
+
+    for f in (f.strip() for f in field_str.split(',')):
+        try:
+            fields.append(int(f))
+        except ValueError:
+            fields.append(f)
+
+    return fields
+
+
+def _parse_scans(scan_str):
+    if scan_str == "":
+        return []
+
+    scan_numbers = []
+
+    for s in scan_str.split(','):
+        try:
+            scan_numbers.append(int(s.strip()))
+        except ValueError:
+            raise ArgumentError("Invalid SCAN_NUMBER %s" % s)
+
+    return scan_numbers
+
+
+def _parse_channels(channel_str):
+    if channel_str == "":
+        return []
+
+    channels = []
+
+    for s in channel_str.split(','):
+        rsplit = s.split("~")
+
+        if len(rsplit) == 1:
+            try:
+                channels.append(int(rsplit[0].strip()))
+            except ValueError:
+                raise ArgumentError("Invalid Channel Number %s" % rsplit)
+        elif len(rsplit) == 2:
+            start, end = rsplit
+
+            try:
+                start = int(start.strip())
+            except ValueError:
+                raise ArgumentError(
+                    "Invalid Starting Channel Number %s" % start)
+
+            try:
+                end = int(end.strip())
+            except ValueError:
+                raise ArgumentError("Invalid Ending Channel Number %s" % end)
+
+            channels.append((start, end))
+        else:
+            raise ArgumentError("Invalid Channel Range %s" % s)
+
+    return channels
+
+
 def create_parser():
     p = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
     p.add_argument("ms", help="Input Measurement Set")
+    p.add_argument("-f", "--fields", type=_parse_fields, default="")
+    p.add_argument("-s", "--scan-numbers", type=_parse_scans, default="")
     p.add_argument("-o", "--output",
                    help="Output Measurement Set name. "
                         "Derived from ms if not provided.")
@@ -30,6 +99,9 @@ def create_parser():
                    default=False,
                    help="Respects FLAG_ROW instead of overriding the column "
                         "values with a np.all(FLAG, axis=(1,2)) reduction.")
+    p.add_argument("-dc", "--data-column", default="CORRECTED_DATA",
+                   type=str,
+                   help="Column to average. Default CORRECTED_DATA")
 
     return p
 
@@ -39,6 +111,7 @@ def log_args(args):
     logger.info("\tAveraging '{ms}' to '{out}'", ms=args.ms, out=args.output)
     logger.info("\tAveraging {tbs} seconds together", tbs=args.time_bin_secs)
     logger.info("\tAveraging {cbs} channels together", cbs=args.chan_bin_size)
+    logger.info("\tAveraging column '{col}' into 'DATA'", col=args.data_column)
 
     logger.info("\tApproximately {rc} rows will be averaged "
                 "as independent chunks. Unique times will not be "
