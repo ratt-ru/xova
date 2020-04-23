@@ -61,7 +61,7 @@ def _parse_channels(channel_str):
             except ValueError:
                 raise ArgumentError("Invalid Ending Channel Number %s" % end)
 
-            channels.extend((start, end))
+            channels.append((start, end))
         else:
             raise ArgumentError("Invalid Channel Range %s" % s)
 
