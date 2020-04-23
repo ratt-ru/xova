@@ -1,6 +1,6 @@
 import pytest
 
-from xova.apps.xova.arguments import _parse_fields, _parse_scans, _parse_channels
+from xova.apps.xova.arguments import _parse_fields, _parse_channels
 
 
 @pytest.mark.parametrize("spec, result", [

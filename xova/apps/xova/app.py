@@ -47,7 +47,8 @@ class Application(object):
         log_args(args)
         self._create_output_ms(args)
 
-        row_chunks, time_chunks, interval_chunks = self._derive_row_chunking(args)
+        row_chunks, time_chunks, interval_chunks = self._derive_row_chunking(
+            args)
 
         (main_ds, spw_ds,
          ddid_ds, field_ds,
@@ -124,7 +125,7 @@ class Application(object):
                                             table_keywords=True,
                                             column_keywords=True,
                                             chunks=chunks)
-        
+
         # Figure out non SPW + SORTED sub-tables to just copy
         subtables = {k for k, v in tabkw.items() if
                      k not in ("SPECTRAL_WINDOW", "SORTED_TABLE") and
@@ -134,7 +135,7 @@ class Application(object):
                                 group_cols="__row__")
 
         field_ds = xds_from_table("::".join((args.ms, "FIELD")),
-                                group_cols="__row__")
+                                  group_cols="__row__")
 
         ddid_ds = xds_from_table("::".join((args.ms, "DATA_DESCRIPTION")))
         assert len(ddid_ds) == 1

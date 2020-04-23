@@ -27,16 +27,15 @@ def _ms_factory_impl(ms_name):
                      # 'shape': ...,  # Variably shaped
                      'valueType': 'COMPLEX'},
             'CORRECTED_DATA': {'_c_order': True,
-                    'comment': 'CORRECTED_DATA column',
-                    'dataManagerGroup': 'StandardStMan',
-                    'dataManagerType': 'StandardStMan',
-                    'keywords': {},
-                    'maxlen': 0,
-                    'ndim': 2,
-                    'option': 0,
-                    # 'shape': ...,  # Variably shaped
-                    'valueType': 'COMPLEX'}}
-
+                               'comment': 'CORRECTED_DATA column',
+                               'dataManagerGroup': 'StandardStMan',
+                               'dataManagerType': 'StandardStMan',
+                               'keywords': {},
+                               'maxlen': 0,
+                               'ndim': 2,
+                               'option': 0,
+                               # 'shape': ...,  # Variably shaped
+                               'valueType': 'COMPLEX'}}
 
     na = 64
     corr_types = [[9, 10, 11, 12], [9, 12]]

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, ArgumentError
+from argparse import (ArgumentParser,
+                      ArgumentDefaultsHelpFormatter,
+                      ArgumentError)
 import os
 
 from loguru import logger
@@ -20,6 +22,7 @@ def _parse_fields(field_str):
 
     return fields
 
+
 def _parse_scans(scan_str):
     if scan_str == "":
         return []
@@ -34,6 +37,7 @@ def _parse_scans(scan_str):
 
     return scan_numbers
 
+
 def _parse_channels(channel_str):
     if channel_str == "":
         return []
@@ -42,7 +46,7 @@ def _parse_channels(channel_str):
 
     for s in channel_str.split(','):
         rsplit = s.split("~")
-    
+
         if len(rsplit) == 1:
             try:
                 channels.append(int(rsplit[0].strip()))
@@ -54,7 +58,8 @@ def _parse_channels(channel_str):
             try:
                 start = int(start.strip())
             except ValueError:
-                raise ArgumentError("Invalid Starting Channel Number %s" % start)
+                raise ArgumentError(
+                    "Invalid Starting Channel Number %s" % start)
 
             try:
                 end = int(end.strip())

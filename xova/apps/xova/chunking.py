@@ -68,15 +68,15 @@ class DatasetGrouper(object):
         (row_chunks,
          time_chunks,
          interval_secs) = self._group_into_time_bins(
-                                        ds_utime,
-                                        ds_avg_intervals,
-                                        ds_counts)
+            ds_utime,
+            ds_avg_intervals,
+            ds_counts)
         (row_chunks,
          time_chunks,
          interval_secs) = self._group_into_max_row_chunks(
-                                        row_chunks,
-                                        time_chunks,
-                                        interval_secs)
+            row_chunks,
+            time_chunks,
+            interval_secs)
 
         return row_chunks, time_chunks, interval_secs
 

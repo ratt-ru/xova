@@ -8,8 +8,6 @@ from dask.array.reductions import partial_reduce
 from daskms import Dataset
 import numpy as np
 
-from loguru import logger
-
 from xova.apps.xova.utils import id_full_like
 
 
