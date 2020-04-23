@@ -168,25 +168,14 @@ def average_main(main_ds, field_ds,
     output_ds = []
 
     for ds in main_ds:
-        compress = False
-
         if fields and ds.FIELD_ID not in fields:
             continue
 
         if scan_numbers and ds.SCAN_NUMBER not in scan_numbers:
             continue
 
-        if compress:
-            logger.warning("Compressing FIELD %d SCAN %d" % (ds.FIELD_ID, ds.SCAN_NUMBER))
-
-            continue
-            # FLAG everything
-            ds = ds.assign(FLAG=(("row", "chan", "corr"), da.ones_like(ds.FLAG.data)),
-                           FLAG_ROW=(("row",), da.ones_like(ds.FLAG_ROW.data)))
-
-        else:
-            if respect_flag_row is False:
-                ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
+        if respect_flag_row is False:
+            ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
 
         dv = ds.data_vars
 
@@ -213,30 +202,6 @@ def average_main(main_ds, field_ds,
                                dv['ANTENNA1'].data,
                                dv['ANTENNA2'].data,
                                **kwargs)
-
-        # Compression of this dataset to a single visibility is required.
-        # At this point, each chunk of the dask array will have been averaged
-        # to a single visibility. Concatenate these chunks into single arrays
-        # and average again
-        if compress:
-            g = len(avg.time.chunks[0])
-            time = concatenate_row_chunks(avg.time, group_every=g)
-            interval = concatenate_row_chunks(avg.interval, group_every=g)
-            ant1 = concatenate_row_chunks(avg.antenna1, group_every=g)
-            ant2 = concatenate_row_chunks(avg.antenna2, group_every=g)
-
-            for c in (c.lower() for c in columns + ["VIS"]):
-                value = getattr(avg, c, None)
-
-                if value is None:
-                    continue
-
-                value = concatenate_row_chunks(value, group_every=g)
-                kwargs[c] = value
-
-            kwargs['chan_bin_size'] = 1 
-            avg = time_and_channel(time, interval, ant1, ant2, **kwargs)
-
 
         output_ds.append(output_dataset(avg,
                                         ds.FIELD_ID,
