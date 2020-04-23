@@ -25,7 +25,18 @@ def _ms_factory_impl(ms_name):
                      'ndim': 2,
                      'option': 0,
                      # 'shape': ...,  # Variably shaped
-                     'valueType': 'COMPLEX'}}
+                     'valueType': 'COMPLEX'},
+            'CORRECTED_DATA': {'_c_order': True,
+                    'comment': 'CORRECTED_DATA column',
+                    'dataManagerGroup': 'StandardStMan',
+                    'dataManagerType': 'StandardStMan',
+                    'keywords': {},
+                    'maxlen': 0,
+                    'ndim': 2,
+                    'option': 0,
+                    # 'shape': ...,  # Variably shaped
+                    'valueType': 'COMPLEX'}}
+
 
     na = 64
     corr_types = [[9, 10, 11, 12], [9, 12]]
@@ -136,9 +147,13 @@ def _ms_factory_impl(ms_name):
             vis = (np.random.random((rows, nchan, ncorr)) +
                    np.random.random((rows, nchan, ncorr))*1j)
             ms.putcol("DATA", vis, startrow=startrow, nrow=rows)
+            ms.putcol("CORRECTED_DATA", vis, startrow=startrow, nrow=rows)
 
             flag = np.random.random_integers(0, 1, size=(rows, nchan, ncorr))
             ms.putcol("FLAG", flag, startrow=startrow, nrow=rows)
+
+            flag_cat = np.zeros((rows, 1, nchan, ncorr))
+            ms.putcol("FLAG_CATEGORY", flag_cat, startrow=startrow, nrow=rows)
 
             startrow += rows
 
