@@ -12,6 +12,7 @@ from loguru import logger
 
 from xova.apps.xova.utils import id_full_like
 
+
 def _safe_concatenate(*args):
     # Handle list with single numpy array case,
     # tuple unpacking fails on it

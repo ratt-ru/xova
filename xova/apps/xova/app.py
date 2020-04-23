@@ -35,6 +35,7 @@ class Application(object):
     """
     Class responsible for implementing the Averaging Operation.
     """
+
     def __init__(self, cmdline_args):
         self.cmdline_args = cmdline_args
 
