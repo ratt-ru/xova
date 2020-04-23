@@ -68,7 +68,6 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
     ----------
     avg : namedtuple
         Result of :func:`average`
-    compress : bool
     field_id : int
         FIELD_ID for this averaged data
     data_desc_id : int
@@ -179,10 +178,8 @@ def average_main(main_ds, field_ds,
 
         dv = ds.data_vars
 
-        # Default kwargs. If we're compressing the dataset
-        # choose a very large time value so that each dask array
-        # chunk is averaged down to one row
-        kwargs = {'time_bin_secs': int(2e9) if compress else time_bin_secs,
+        # Default kwargs.
+        kwargs = {'time_bin_secs': time_bin_secs,
                   'chan_bin_size': chan_bin_size,
                   'vis': dv[viscolumn].data}
 
