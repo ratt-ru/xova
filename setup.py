@@ -9,7 +9,7 @@ with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 requirements = ['codex-africanus[dask] >= 0.2.1',
-                'dask-ms >= 0.2.3',
+                'dask-ms >= 0.2.4',
                 'loguru']
 
 extras_require = {
