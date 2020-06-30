@@ -12,19 +12,21 @@ import numpy as np
 from xova.apps.xova.utils import id_full_like
 
 
-def _safe_concatenate(*args):
+def _safe_concatenate(args):
     # Handle singleton arg
-    if len(args) == 1:
-        return args[0]
+    if not isinstance(args, list):
+        args = [args]
 
     if isinstance(args[0], np.ndarray):
-        return np.concatenate(*args)
+        return np.concatenate(args)
     elif isinstance(args[0], dict):
         d = args[0].copy()
 
         for arg in args[1:]:
             n = len(d)
             d.update(("r%d" % (n+i+1), v) for i, (_, v) in enumerate(sorted(arg.items())))
+
+        assert len(d) == sum(len(a) for a in args)
 
         return d
     else:
@@ -134,10 +136,10 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
                                     avg.sigma_spectrum)
 
     # Concatenate row chunks together
-    # if group_row_chunks > 1:
-    #     grc = group_row_chunks
-    #     out_ds = {k: (dims, concatenate_row_chunks(data, group_every=grc))
-    #               for k, (dims, data) in out_ds.items()}
+    if group_row_chunks > 1:
+        grc = group_row_chunks
+        out_ds = {k: (dims, concatenate_row_chunks(data, group_every=grc))
+                  for k, (dims, data) in out_ds.items()}
 
     return Dataset(out_ds)
 
