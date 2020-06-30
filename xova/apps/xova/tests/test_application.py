@@ -5,6 +5,7 @@ import pytest
 from xova.testing_data import test_ms
 from xova.apps.xova.app import Application
 
+
 @pytest.mark.parametrize("mode", ["timechannel", "bda"])
 def test_application(mode):
     ms = test_ms()

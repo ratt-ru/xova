@@ -85,25 +85,27 @@ def create_parser():
         p.add_argument("-f", "--fields", type=_parse_fields, default="")
         p.add_argument("-s", "--scan-numbers", type=_parse_scans, default="")
         p.add_argument("-o", "--output",
-                    help="Output Measurement Set name. "
+                       help="Output Measurement Set name. "
                             "Derived from ms if not provided.")
         p.add_argument("--force", action="store_true", default=False,
-                    help="Force creation of OUTPUT by deleting "
+                       help="Force creation of OUTPUT by deleting "
                             "any existing file or directory.")
         p.add_argument("-rc", "--row-chunks", type=int, default=10000,
-                    help="Number of rows averaged together "
+                       help="Number of rows averaged together "
                             "as part of a single, independent, "
                             "averaging operation.")
         p.add_argument("-grc", "--group-row-chunks", type=int, default=4,
-                    help="Number of averaged row chunks to group together "
-                            "when writing data to the output Measurement Set. ")
+                       help="Number of averaged row chunks to "
+                            "group together when writing data "
+                            "to the output Measurement Set.")
         p.add_argument("-rfr", "--respect-flag-row", action="store_true",
-                    default=False,
-                    help="Respects FLAG_ROW instead of overriding the column "
-                            "values with a np.all(FLAG, axis=(1,2)) reduction.")
+                       default=False,
+                       help="Respects FLAG_ROW instead of overriding the "
+                            "column values with a np.all(FLAG, axis=(1,2)) "
+                            "reduction.")
         p.add_argument("-dc", "--data-column", default="CORRECTED_DATA",
-                    type=str,
-                    help="Column to average. Default CORRECTED_DATA")
+                       type=str,
+                       help="Column to average. Default CORRECTED_DATA")
 
     tc_parser.add_argument("-t", "--time-bin-secs", default=2.0, type=float,
                            help="Number of seconds to "
@@ -114,7 +116,6 @@ def create_parser():
 
     bda_parser.add_argument("-d", "--decorrelation", default=.99, type=float,
                             help="Acceptable decorrrelation factor")
-
 
     return parser
 
@@ -129,12 +130,16 @@ def log_args(args):
     logger.info("\tAveraging '{ms}' to '{out}'", ms=args.ms, out=args.output)
 
     if args.command == "timechannel":
-        logger.info("\tAveraging {tbs} seconds together", tbs=args.time_bin_secs)
-        logger.info("\tAveraging {cbs} channels together", cbs=args.chan_bin_size)
+        logger.info("\tAveraging {tbs} seconds together",
+                    tbs=args.time_bin_secs)
+        logger.info("\tAveraging {cbs} channels together",
+                    cbs=args.chan_bin_size)
     elif args.command == "bda":
-        logger.info("\tAcceptable decorrelation factor {dcf}", dcf=args.decorrelation)
+        logger.info("\tAcceptable decorrelation factor {dcf}",
+                    dcf=args.decorrelation)
 
-    logger.info("\tAveraging column '{col}' into 'DATA'", col=args.data_column)
+    logger.info("\tAveraging column '{col}' into 'DATA'",
+                col=args.data_column)
 
     logger.info("\tApproximately {rc} rows will be averaged "
                 "as independent chunks. Unique times will not be "

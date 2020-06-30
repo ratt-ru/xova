@@ -24,7 +24,8 @@ def _safe_concatenate(args):
 
         for arg in args[1:]:
             n = len(d)
-            d.update(("r%d" % (n+i+1), v) for i, (_, v) in enumerate(sorted(arg.items())))
+            d.update(("r%d" % (n+i+1), v) for i, (_, v)
+                     in enumerate(sorted(arg.items())))
 
         assert len(d) == sum(len(a) for a in args)
 
@@ -72,6 +73,23 @@ def concatenate_row_chunks(array, group_every=4):
     return da.Array(graph, data.name, chunks, dtype=data.dtype)
 
 
+def _flag_cats(flags):
+    if isinstance(flags, np.ndarray):
+        return flags[:, None, :, :]
+    elif isinstance(flags, dict):
+        return {k: v[:, None, :, :] for k, v in flags.items()}
+    else:
+        raise TypeError("Expected dict or ndarray")
+
+
+def flag_categories(flag):
+    # Single flag category, equal to flags
+    return da.blockwise(_flag_cats, "rafc",
+                        flag, "rfc",
+                        new_axes={"a": 1},
+                        dtype=flag.dtype)
+
+
 def output_dataset(avg, field_id, data_desc_id, scan_number,
                    group_row_chunks):
     """
@@ -96,8 +114,7 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
     data_desc_id = id_full_like(avg.time, fill_value=data_desc_id)
     scan_number = id_full_like(avg.time, fill_value=scan_number)
 
-    # Single flag category, equal to flags
-    # flag_cats = avg.flag[:, None, :, :]
+    flag_cats = flag_categories(avg.flag)
 
     out_ds = {
         # Explicitly zero these columns? But this happens anyway
@@ -113,7 +130,7 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
         "SCAN_NUMBER": (("row",), scan_number),
 
         "FLAG_ROW": (("row",), avg.flag_row),
-        # "FLAG_CATEGORY": (("row", "flagcat", "chan", "corr"), flag_cats),
+        "FLAG_CATEGORY": (("row", "flagcat", "chan", "corr"), flag_cats),
         "TIME": (("row",), avg.time),
         "INTERVAL": (("row",), avg.interval),
         "TIME_CENTROID": (("row",), avg.time_centroid),
@@ -301,7 +318,6 @@ def bda_average_main(main_ds, field_ds, ddid_ds, spw_ds,
                                         group_row_chunks))
 
     return output_ds
-
 
 
 def average_spw(spw_ds, chan_bin_size):
