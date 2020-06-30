@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from africanus.averaging.dask import (time_and_channel,
-                                      chan_metadata,
-                                      chan_average as dask_chan_avg)
+                                      bda,
+                                      tc_chan_metadata,
+                                      tc_chan_average as tc_dask_chan_avg)
 import dask.array as da
 from dask.array.reductions import partial_reduce
 from daskms import Dataset
@@ -12,12 +13,22 @@ from xova.apps.xova.utils import id_full_like
 
 
 def _safe_concatenate(*args):
-    # Handle list with single numpy array case,
-    # tuple unpacking fails on it
-    if len(args) == 1 and isinstance(args[0], np.ndarray):
+    # Handle singleton arg
+    if len(args) == 1:
         return args[0]
 
-    return np.concatenate(*args)
+    if isinstance(args[0], np.ndarray):
+        return np.concatenate(*args)
+    elif isinstance(args[0], dict):
+        d = args[0].copy()
+
+        for arg in args[1:]:
+            n = len(d)
+            d.update(("r%d" % (n+i+1), v) for i, (_, v) in enumerate(sorted(arg.items())))
+
+        return d
+    else:
+        raise TypeError("Unhandled arg type %s" % type(args[0]))
 
 
 def concatenate_row_chunks(array, group_every=4):
@@ -84,7 +95,7 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
     scan_number = id_full_like(avg.time, fill_value=scan_number)
 
     # Single flag category, equal to flags
-    flag_cats = avg.flag[:, None, :, :]
+    # flag_cats = avg.flag[:, None, :, :]
 
     out_ds = {
         # Explicitly zero these columns? But this happens anyway
@@ -100,7 +111,7 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
         "SCAN_NUMBER": (("row",), scan_number),
 
         "FLAG_ROW": (("row",), avg.flag_row),
-        "FLAG_CATEGORY": (("row", "flagcat", "chan", "corr"), flag_cats),
+        # "FLAG_CATEGORY": (("row", "flagcat", "chan", "corr"), flag_cats),
         "TIME": (("row",), avg.time),
         "INTERVAL": (("row",), avg.interval),
         "TIME_CENTROID": (("row",), avg.time_centroid),
@@ -123,10 +134,10 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
                                     avg.sigma_spectrum)
 
     # Concatenate row chunks together
-    if group_row_chunks > 1:
-        grc = group_row_chunks
-        out_ds = {k: (dims, concatenate_row_chunks(data, group_every=grc))
-                  for k, (dims, data) in out_ds.items()}
+    # if group_row_chunks > 1:
+    #     grc = group_row_chunks
+    #     out_ds = {k: (dims, concatenate_row_chunks(data, group_every=grc))
+    #               for k, (dims, data) in out_ds.items()}
 
     return Dataset(out_ds)
 
@@ -207,6 +218,90 @@ def average_main(main_ds, field_ds,
     return output_ds
 
 
+def bda_average_main(main_ds, field_ds, ddid_ds, spw_ds,
+                     decorrelation,
+                     fields, scan_numbers,
+                     group_row_chunks, respect_flag_row,
+                     viscolumn="DATA"):
+    """
+    Parameters
+    ----------
+    main_ds : list of Datasets
+        Dataset containing Measurement Set columns.
+        Should have a DATA_DESC_ID attribute.
+    field_ds : list of Datasets
+        Each Dataset corresponds to a row of the FIELD table.
+    ddid_ds : Dataset
+        Single Dataset containing the DATA_DESCRIPTION table.
+    spw_ds : list of Datasets
+        Each Dataset correspond to a row of the SPECTRAL_WINDOW table.
+    decorrelation : float
+        Decorrelation factor
+    fields : list
+    scan_numbers : list
+    group_row_chunks : int, optional
+        Number of row chunks to concatenate together
+    respect_flag_row : bool
+        Respect FLAG_ROW instead of using FLAG
+        for computing row flags.
+    viscolumn: string
+        name of column to average
+    Returns
+    -------
+    avg
+        tuple containing averaged data
+    """
+    output_ds = []
+
+    for ds in main_ds:
+        if fields and ds.FIELD_ID not in fields:
+            continue
+
+        if scan_numbers and ds.SCAN_NUMBER not in scan_numbers:
+            continue
+
+        if respect_flag_row is False:
+            ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
+
+        spw = ddid_ds.SPECTRAL_WINDOW_ID.values[ds.DATA_DESC_ID]
+        ds = ds.assign(REF_FREQ=((), spw_ds[spw].REF_FREQUENCY.data[0]),
+                       CHAN_WIDTH=(("chan",), spw_ds[spw].CHAN_WIDTH.data[0]))
+
+        dv = ds.data_vars
+
+        # Default kwargs.
+        kwargs = {'decorrelation': decorrelation,
+                  'vis': dv[viscolumn].data,
+                  'format': 'ragged'}
+
+        # Other columns with directly transferable names
+        columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',
+                   'UVW', 'FLAG', 'WEIGHT_SPECTRUM', 'SIGMA_SPECTRUM',
+                   'REF_FREQ', 'CHAN_WIDTH']
+
+        for c in columns:
+            try:
+                kwargs[c.lower()] = dv[c].data
+            except KeyError:
+                pass
+
+        # Set up the average operation
+        avg = bda(dv['TIME'].data,
+                  dv['INTERVAL'].data,
+                  dv['ANTENNA1'].data,
+                  dv['ANTENNA2'].data,
+                  **kwargs)
+
+        output_ds.append(output_dataset(avg,
+                                        ds.FIELD_ID,
+                                        ds.DATA_DESC_ID,
+                                        ds.SCAN_NUMBER,
+                                        group_row_chunks))
+
+    return output_ds
+
+
+
 def average_spw(spw_ds, chan_bin_size):
     """
     Parameters
@@ -236,13 +331,13 @@ def average_spw(spw_ds, chan_bin_size):
 
         # Construct channel metadata
         chan_arrays = (chan_freq, chan_width, effective_bw, resolution)
-        chan_meta = chan_metadata((), chan_arrays, chan_bin_size)
+        chan_meta = tc_chan_metadata((), chan_arrays, chan_bin_size)
         # Average channel based data
-        avg = dask_chan_avg(chan_meta, chan_freq=chan_freq,
-                            chan_width=chan_width,
-                            effective_bw=effective_bw,
-                            resolution=resolution,
-                            chan_bin_size=chan_bin_size)
+        avg = tc_dask_chan_avg(chan_meta, chan_freq=chan_freq,
+                               chan_width=chan_width,
+                               effective_bw=effective_bw,
+                               resolution=resolution,
+                               chan_bin_size=chan_bin_size)
 
         num_chan = da.full((1,), avg.chan_freq.shape[0], dtype=np.int32)
 

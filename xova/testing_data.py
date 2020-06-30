@@ -50,6 +50,8 @@ def _ms_factory_impl(ms_name):
     ant1 = np.tile(ant1, ntime)
     ant2 = np.tile(ant2, ntime)
 
+    uvw = np.random.random(size=(time.shape[0], 3)).astype(np.float64)
+
     ddids = ([0, 0, time.shape[0]], [1, 1, time.shape[0]])
 
     with pt.default_ms(ms_name, desc) as ms:
@@ -135,6 +137,7 @@ def _ms_factory_impl(ms_name):
             ms.putcol("TIME", time, startrow=startrow, nrow=rows)
             ms.putcol("ANTENNA1", ant1, startrow=startrow, nrow=rows)
             ms.putcol("ANTENNA2", ant2, startrow=startrow, nrow=rows)
+            ms.putcol("UVW", uvw, startrow=startrow, nrow=rows)
 
             nchan = spw_chans[spw_id]
             ncorr = len(corr_types[pol_id])

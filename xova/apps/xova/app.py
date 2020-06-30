@@ -18,7 +18,9 @@ from loguru import logger
 
 import xova.apps.xova.logger_init  # noqa
 from xova.apps.xova.arguments import parse_args, log_args
-from xova.apps.xova.averaging import average_main, average_spw
+from xova.apps.xova.averaging import (average_main,
+                                      bda_average_main,
+                                      average_spw)
 from xova.apps.xova.chunking import dataset_chunks
 from xova.apps.xova.subtables import copy_subtables
 
@@ -55,26 +57,42 @@ class Application(object):
          subtables) = self._input_datasets(args, row_chunks)
 
         # Set up Main MS data averaging
-        main_ds = average_main(main_ds,
-                               field_ds,
-                               args.time_bin_secs,
-                               args.chan_bin_size,
-                               args.fields,
-                               args.scan_numbers,
-                               args.group_row_chunks,
-                               args.respect_flag_row,
-                               viscolumn=args.data_column)
+        if args.command == "timechannel":
+            main_ds = average_main(main_ds,
+                                field_ds,
+                                args.time_bin_secs,
+                                args.chan_bin_size,
+                                args.fields,
+                                args.scan_numbers,
+                                args.group_row_chunks,
+                                args.respect_flag_row,
+                                viscolumn=args.data_column)
+        elif args.command == "bda":
+            main_ds = bda_average_main(main_ds,
+                                      field_ds,
+                                      ddid_ds,
+                                      spw_ds,
+                                      args.decorrelation,
+                                      args.fields,
+                                      args.scan_numbers,
+                                      args.group_row_chunks,
+                                      args.respect_flag_row,
+                                      viscolumn=args.data_column)
+        else:
+            raise ValueError("Invalid command %s" % args.command)
 
-        main_writes = xds_to_table(main_ds, args.output, "ALL")
+        main_writes = xds_to_table(main_ds, args.output, "ALL",
+                                   descriptor="ms(False)")
 
         # Set up SPW data averaging
-        spw_ds = average_spw(spw_ds, args.chan_bin_size)
-        spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
-        spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
+        # spw_ds = average_spw(spw_ds, args.chan_bin_size)
+        # spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
+        # spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
 
         copy_subtables(args.ms, args.output, subtables)
 
-        self._execute_graph(main_writes, spw_writes)
+        #self._execute_graph(main_writes, spw_writes)
+        self._execute_graph(main_writes, [])
 
     def _execute_graph(self, *writes):
         # Set up Profilers and Progress Bars
@@ -93,7 +111,7 @@ class Application(object):
                 from dask.diagnostics import ProgressBar
                 stack.enter_context(ProgressBar())
 
-            dask.compute(*writes)
+            dask.compute(*writes, scheduler='single-threaded')
             logger.info("Averaging Complete")
 
         if can_profile:
@@ -113,7 +131,7 @@ class Application(object):
                                columns=["TIME", "INTERVAL"],
                                chunks={'row': args.row_chunks})
 
-        return dataset_chunks(datasets, args.time_bin_secs,
+        return dataset_chunks(datasets, getattr(args, "time_bin_secs", 32),
                               args.row_chunks)
 
     def _input_datasets(self, args, row_chunks):
@@ -139,6 +157,6 @@ class Application(object):
 
         ddid_ds = xds_from_table("::".join((args.ms, "DATA_DESCRIPTION")))
         assert len(ddid_ds) == 1
-        ddid_ds = dask.compute(ddid_ds)[0]
+        ddid_ds = ddid_ds[0].compute()
 
         return main_ds, spw_ds, ddid_ds, field_ds, subtables

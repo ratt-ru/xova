@@ -4,6 +4,7 @@ from argparse import (ArgumentParser,
                       ArgumentDefaultsHelpFormatter,
                       ArgumentError)
 import os
+import sys
 
 from loguru import logger
 
@@ -74,43 +75,65 @@ def _parse_channels(channel_str):
 
 
 def create_parser():
-    p = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    p.add_argument("ms", help="Input Measurement Set")
-    p.add_argument("-f", "--fields", type=_parse_fields, default="")
-    p.add_argument("-s", "--scan-numbers", type=_parse_scans, default="")
-    p.add_argument("-o", "--output",
-                   help="Output Measurement Set name. "
-                        "Derived from ms if not provided.")
-    p.add_argument("-t", "--time-bin-secs", default=2.0, type=float,
-                   help="Number of seconds to average into a single bin")
-    p.add_argument("-c", "--chan-bin-size", default=16, type=int,
-                   help="Number of channels to average into a single bin")
-    p.add_argument("--force", action="store_true", default=False,
-                   help="Force creation of OUTPUT by deleting "
-                        "any existing file or directory.")
-    p.add_argument("-rc", "--row-chunks", type=int, default=10000,
-                   help="Number of rows averaged together "
-                        "as part of a single, independent, "
-                        "averaging operation.")
-    p.add_argument("-grc", "--group-row-chunks", type=int, default=4,
-                   help="Number of averaged row chunks to group together "
-                        "when writing data to the output Measurement Set. ")
-    p.add_argument("-rfr", "--respect-flag-row", action="store_true",
-                   default=False,
-                   help="Respects FLAG_ROW instead of overriding the column "
-                        "values with a np.all(FLAG, axis=(1,2)) reduction.")
-    p.add_argument("-dc", "--data-column", default="CORRECTED_DATA",
-                   type=str,
-                   help="Column to average. Default CORRECTED_DATA")
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+    sp = parser.add_subparsers(help='command', dest='command')
+    tc_parser = sp.add_parser("timechannel")
+    bda_parser = sp.add_parser("bda")
 
-    return p
+    for p in (tc_parser, bda_parser):
+        p.add_argument("ms", help="Input Measurement Set")
+        p.add_argument("-f", "--fields", type=_parse_fields, default="")
+        p.add_argument("-s", "--scan-numbers", type=_parse_scans, default="")
+        p.add_argument("-o", "--output",
+                    help="Output Measurement Set name. "
+                            "Derived from ms if not provided.")
+        p.add_argument("--force", action="store_true", default=False,
+                    help="Force creation of OUTPUT by deleting "
+                            "any existing file or directory.")
+        p.add_argument("-rc", "--row-chunks", type=int, default=10000,
+                    help="Number of rows averaged together "
+                            "as part of a single, independent, "
+                            "averaging operation.")
+        p.add_argument("-grc", "--group-row-chunks", type=int, default=4,
+                    help="Number of averaged row chunks to group together "
+                            "when writing data to the output Measurement Set. ")
+        p.add_argument("-rfr", "--respect-flag-row", action="store_true",
+                    default=False,
+                    help="Respects FLAG_ROW instead of overriding the column "
+                            "values with a np.all(FLAG, axis=(1,2)) reduction.")
+        p.add_argument("-dc", "--data-column", default="CORRECTED_DATA",
+                    type=str,
+                    help="Column to average. Default CORRECTED_DATA")
+
+    tc_parser.add_argument("-t", "--time-bin-secs", default=2.0, type=float,
+                           help="Number of seconds to "
+                                "average into a single bin")
+    tc_parser.add_argument("-c", "--chan-bin-size", default=16, type=int,
+                           help="Number of channels to "
+                                "average into a single bin")
+
+    bda_parser.add_argument("-d", "--decorrelation", default=.99, type=float,
+                            help="Acceptable decorrrelation factor")
+
+
+    return parser
 
 
 def log_args(args):
     logger.info("Configuration:")
+    if args.command == "timechannel":
+        logger.info("Standard Time and Channel Averaging")
+    elif args.command == "bda":
+        logger.info("Baseline-Dependant Time and Channel Averaging")
+
     logger.info("\tAveraging '{ms}' to '{out}'", ms=args.ms, out=args.output)
-    logger.info("\tAveraging {tbs} seconds together", tbs=args.time_bin_secs)
-    logger.info("\tAveraging {cbs} channels together", cbs=args.chan_bin_size)
+
+    if args.command == "timechannel":
+        logger.info("\tAveraging {tbs} seconds together", tbs=args.time_bin_secs)
+        logger.info("\tAveraging {cbs} channels together", cbs=args.chan_bin_size)
+    elif args.command == "bda":
+        logger.info("\tAcceptable decorrelation factor {dcf}", dcf=args.decorrelation)
+
     logger.info("\tAveraging column '{col}' into 'DATA'", col=args.data_column)
 
     logger.info("\tApproximately {rc} rows will be averaged "
@@ -127,8 +150,8 @@ def log_args(args):
     if args.respect_flag_row is True:
         logger.info("\tRespecting FLAG_ROW values")
     else:
-        logger.warning("\tComputing FLAG_ROW values "
-                       "via any(FLAG, axis=(1,2))")
+        logger.warning("\tOverriding FLAG_ROW values "
+                       "with any(FLAG, axis=(1,2))")
 
 
 def postprocess_args(args):
@@ -145,4 +168,11 @@ def postprocess_args(args):
 
 
 def parse_args(cmdline_args):
-    return postprocess_args(create_parser().parse_args(cmdline_args))
+    parser = create_parser()
+    args = parser.parse_args(cmdline_args)
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(0)
+
+    return postprocess_args(args)
