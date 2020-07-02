@@ -22,10 +22,10 @@ def _safe_concatenate(args):
     elif isinstance(args[0], dict):
         d = args[0].copy()
 
-        for arg in args[1:]:
+        for a in args[1:]:
             n = len(d)
-            d.update(("r%d" % (n+i+1), v) for i, (_, v)
-                     in enumerate(sorted(arg.items())))
+            d.update(("r%d" % (n+i), a["r%d" % i])
+                     for i in range(1, len(a) + 1))
 
         assert len(d) == sum(len(a) for a in args)
 
@@ -143,6 +143,12 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
         "FLAG": (("row", "chan", "corr"), avg.flag),
     }
 
+    if hasattr(avg, "num_chan"):
+        out_ds['NUM_CHAN'] = (("row",), avg.num_chan)
+
+    if hasattr(avg, "decorr_chan_width"):
+        out_ds['DECORR_CHAN_WIDTH'] = (("row",), avg.decorr_chan_width)
+
     # Add optionally averaged columns columns
     if avg.weight_spectrum is not None:
         out_ds['WEIGHT_SPECTRUM'] = (("row", "chan", "corr"),
@@ -237,10 +243,15 @@ def average_main(main_ds, field_ds,
     return output_ds
 
 
-def bda_average_main(main_ds, field_ds, ddid_ds, spw_ds,
+def bda_average_main(main_ds,
+                     field_ds,
+                     ddid_ds,
+                     spw_ds,
                      decorrelation,
-                     fields, scan_numbers,
-                     group_row_chunks, respect_flag_row,
+                     fields,
+                     scan_numbers,
+                     group_row_chunks,
+                     respect_flag_row,
                      viscolumn="DATA"):
     """
     Parameters
@@ -370,3 +381,130 @@ def average_spw(spw_ds, chan_bin_size):
         new_spw_ds.append(Dataset(dv))
 
     return new_spw_ds
+
+
+def _avg_wrapper(decorr_chan_width, nchan,
+                 spw_num_chan,
+                 spw_chan_width,
+                 spw_chan_freq,
+                 spw_effective_bw,
+                 spw_resolution):
+
+    spw_num_chan = spw_num_chan
+    spw_chan_width = spw_chan_width[0]
+    spw_chan_freq = spw_chan_freq[0]
+    spw_effective_bw = spw_effective_bw[0]
+    spw_resolution = spw_resolution[0]
+
+    unum_chan, idx, inv = np.unique(nchan,
+                                    return_index=True,
+                                    return_inverse=True)
+    print(unum_chan, decorr_chan_width[idx])
+
+    return decorr_chan_width
+
+
+def _channelisations(num_chan, decorr_chan_width, data_desc_id):
+    num_chan, idx = np.unique(num_chan, return_index=True)
+    return num_chan, decorr_chan_width[idx], data_desc_id[idx]
+
+
+def _noop(x, keepdims, axis):
+    return x
+
+
+def combine(x, keepdims, axis):
+    if isinstance(x, list):
+        num_chan, decorr_cw, ddid = (np.concatenate(v) for v in zip(*x))
+        return _channelisations(num_chan, decorr_cw, ddid)
+    elif isinstance(x, tuple):
+        return x
+    else:
+        raise TypeError("Unhandled combine type %s" % type(x))
+
+
+def aggregate(x, keepdims, axis):
+    num_chans, chan_width, ddid = (x if not isinstance(x, list) else
+                                   combine(x, keepdims, axis))
+
+    spws, idx = np.unique(np.stack([ddid, num_chans], axis=1),
+                          axis=0, return_index=True)
+
+    return {(d, nc): i for i, (d, nc) in enumerate(spws)}
+
+
+def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
+    """
+    Parameters
+    ----------
+    in_datasets : list of Datasets
+        list of Datasets
+    out_datasets : list of Datasets
+        list of Datasets
+    ddid_ds : Dataset
+        DATA_DESCRIPTION dataset
+    spw_ds : list of Datasets
+        list of Datasets, each describing a single Spectral Window
+
+    Returns
+    -------
+    spw_ds : list of Datasets
+        list of Datasets, each describing an averaged Spectral Window
+    """
+
+    channelisations = []
+
+    for in_ds, out_ds in zip(in_datasets, out_datasets):
+        spw_id = ddid_ds.SPECTRAL_WINDOW_ID.values[in_ds.DATA_DESC_ID]
+        pol_id = ddid_ds.POLARIZATION_ID.values[in_ds.DATA_DESC_ID]
+        spw = spw_ds[spw_id]
+
+        assert len(spw.CHAN_WIDTH.data[0].chunks) == 1
+
+        def fn(spw_id, ddid):
+            return spw_id[0][ddid]
+
+        spw_id = da.blockwise(fn, ("row",),
+                              ddid_ds.SPECTRAL_WINDOW_ID.data, ("ddid",),
+                              out_ds.DATA_DESC_ID.data, ("row",),
+                              dtype=ddid_ds.SPECTRAL_WINDOW_ID.dtype)
+
+        transform = da.blockwise(_channelisations, ("row",),
+                                 out_ds.NUM_CHAN.data, ("row",),
+                                 out_ds.DECORR_CHAN_WIDTH.data, ("row",),
+                                 spw_id, ("row",),
+                                 meta=np.empty((0,), dtype=np.object))
+
+        result = da.reduction(transform,
+                              chunk=_noop,
+                              combine=combine,
+                              aggregate=combine,
+                              concatenate=False,
+                              keepdims=True,
+                              meta=np.empty((0,), dtype=np.object),
+                              dtype=np.object)
+
+        channelisations.append(result)
+
+    result = da.reduction(da.concatenate(channelisations),
+                          chunk=_noop,
+                          combine=combine,
+                          aggregate=aggregate,
+                          concatenate=False,
+                          meta=np.empty((0,), dtype=np.object),
+                          dtype=np.object)
+
+    def _map(ddid, num_chan, mapping):
+        return np.array([mapping[(d, nc)] for d, nc
+                        in zip(ddid, num_chan)])
+
+    for i, out_ds in enumerate(out_datasets):
+        ddid = da.blockwise(_map, ("row",),
+                            out_ds.DATA_DESC_ID.data, ("row",),
+                            out_ds.NUM_CHAN.data, ("row",),
+                            result, (),
+                            dtype=out_ds.DATA_DESC_ID.dtype)
+
+        out_datasets[i] = out_ds.assign(DATA_DESC_ID=(("row",), ddid))
+
+    return out_datasets

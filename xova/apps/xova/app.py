@@ -20,7 +20,8 @@ import xova.apps.xova.logger_init  # noqa
 from xova.apps.xova.arguments import parse_args, log_args
 from xova.apps.xova.averaging import (average_main,
                                       bda_average_main,
-                                      average_spw)
+                                      average_spw,
+                                      bda_average_spw)
 from xova.apps.xova.chunking import dataset_chunks
 from xova.apps.xova.subtables import copy_subtables
 
@@ -58,41 +59,42 @@ class Application(object):
 
         # Set up Main MS data averaging
         if args.command == "timechannel":
-            main_ds = average_main(main_ds,
-                                field_ds,
-                                args.time_bin_secs,
-                                args.chan_bin_size,
-                                args.fields,
-                                args.scan_numbers,
-                                args.group_row_chunks,
-                                args.respect_flag_row,
-                                viscolumn=args.data_column)
+            output_ds = average_main(main_ds,
+                                     field_ds,
+                                     args.time_bin_secs,
+                                     args.chan_bin_size,
+                                     args.fields,
+                                     args.scan_numbers,
+                                     args.group_row_chunks,
+                                     args.respect_flag_row,
+                                     viscolumn=args.data_column)
+
+            spw_ds = average_spw(spw_ds, args.chan_bin_size)
+            spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
+            spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
         elif args.command == "bda":
-            main_ds = bda_average_main(main_ds,
-                                      field_ds,
-                                      ddid_ds,
-                                      spw_ds,
-                                      args.decorrelation,
-                                      args.fields,
-                                      args.scan_numbers,
-                                      args.group_row_chunks,
-                                      args.respect_flag_row,
-                                      viscolumn=args.data_column)
+            output_ds = bda_average_main(main_ds,
+                                         field_ds,
+                                         ddid_ds,
+                                         spw_ds,
+                                         args.decorrelation,
+                                         args.fields,
+                                         args.scan_numbers,
+                                         args.group_row_chunks,
+                                         args.respect_flag_row,
+                                         viscolumn=args.data_column)
+
+            output_ds = bda_average_spw(main_ds, output_ds, ddid_ds, spw_ds)
+            spw_writes = []
         else:
             raise ValueError("Invalid command %s" % args.command)
 
-        main_writes = xds_to_table(main_ds, args.output, "ALL",
+        main_writes = xds_to_table(output_ds, args.output, "ALL",
                                    descriptor="ms(False)")
-
-        # Set up SPW data averaging
-        # spw_ds = average_spw(spw_ds, args.chan_bin_size)
-        # spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
-        # spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
 
         copy_subtables(args.ms, args.output, subtables)
 
-        #self._execute_graph(main_writes, spw_writes)
-        self._execute_graph(main_writes, [])
+        self._execute_graph(main_writes, spw_writes)
 
     def _execute_graph(self, *writes):
         # Set up Profilers and Progress Bars
