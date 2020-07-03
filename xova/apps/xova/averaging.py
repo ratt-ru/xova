@@ -421,6 +421,15 @@ def aggregate(x, keepdims, axis):
     return {(d, nc): i for i, (d, nc) in enumerate(new_ddids)}
 
 
+def polarization_id(pol_id, ddid_map):
+    return np.asarray([pol_id[old_ddid]
+                        for (old_ddid, nchans), new_ddid
+                        in ddid_map.items()])
+
+def spectral_window_id(ddid_map):
+    return np.arange(len(ddid_map))
+
+
 def create_spw(chan_freq, chan_width, ref_freq, ddid_map, ddid):
     chan_freq = chan_freq.squeeze()
     chan_width = chan_width.squeeze()
@@ -444,11 +453,10 @@ def create_spw(chan_freq, chan_width, ref_freq, ddid_map, ddid):
     for (dd, nchan), new_ddid in ddid_map.items():
         if dd == ddid:
             # Current band end points
-
             start = chan_freq[0] - chan_width[0] / 2
             end = chan_freq[-1] + chan_width[0] / 2
             cw = np.full(nchan, bandwidth / nchan)
-            # Now figure out new channelisation
+            # Create new channelisation
             cf = np.linspace(start + cw[0] / 2, end - cw[-1] / 2, nchan)
             key = "r%d" % rowid
             rcw[key] = cw[None, :]
@@ -484,6 +492,9 @@ def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
 
     channelisations = []
 
+    # Over the entire set of datasets, determine the complete
+    # set of channelisations, per input DDID and
+    # reduce down to a single object
     for in_ds, out_ds in zip(in_datasets, out_datasets):
         spw_id = ddid_ds.SPECTRAL_WINDOW_ID.values[in_ds.DATA_DESC_ID]
         pol_id = ddid_ds.POLARIZATION_ID.values[in_ds.DATA_DESC_ID]
@@ -515,14 +526,18 @@ def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
 
         channelisations.append(result)
 
+    # Final reduction object, note the aggregate method
+    # which generates the mapping
     new_ddid = da.reduction(da.concatenate(channelisations),
                             chunk=_noop,
                             combine=combine,
                             aggregate=aggregate,
                             concatenate=False,
-                            meta=np.empty((0,), dtype=np.object),
+                            keepdims=False,
+                            meta=np.empty((), dtype=np.object),
                             dtype=np.object)
 
+    # Set up the DATA_DESC_ID for each output dataset
     for i, out_ds in enumerate(out_datasets):
         ddid = da.blockwise(_new_ddid_map, ("row",),
                             out_ds.DATA_DESC_ID.data, ("row",),
@@ -532,6 +547,7 @@ def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
 
         out_datasets[i] = out_ds.assign(DATA_DESC_ID=(("row",), ddid))
 
+    # Generate Spectral Windows for each DDID and channelisation
     out_spw_ds = []
     it = zip(ddid_ds.SPECTRAL_WINDOW_ID.values, ddid_ds.POLARIZATION_ID.values)
 
@@ -591,15 +607,7 @@ def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
 
         out_spw_ds.append(Dataset(dv))
 
-
-    def polarization_id(pol_id, ddid_map):
-        return np.asarray([pol_id[old_ddid]
-                           for (old_ddid, nchans), new_ddid
-                           in ddid_map.items()])
-
-    def spectral_window_id(ddid_map):
-        return np.arange(len(ddid_map))
-
+    # Now construct the DATA_DESCRIPTION table
     pol_id = da.blockwise(polarization_id, ("row",),
                           ddid_ds.POLARIZATION_ID.data, ("row",),
                           new_ddid, (),
