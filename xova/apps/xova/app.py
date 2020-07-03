@@ -70,8 +70,8 @@ class Application(object):
                                      viscolumn=args.data_column)
 
             spw_ds = average_spw(spw_ds, args.chan_bin_size)
-            spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
-            spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
+            # spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
+            # spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
         elif args.command == "bda":
             output_ds = bda_average_main(main_ds,
                                          field_ds,
@@ -84,13 +84,15 @@ class Application(object):
                                          args.respect_flag_row,
                                          viscolumn=args.data_column)
 
-            output_ds = bda_average_spw(main_ds, output_ds, ddid_ds, spw_ds)
-            spw_writes = []
+            output_ds, spw_ds = bda_average_spw(main_ds, output_ds, ddid_ds, spw_ds)
         else:
             raise ValueError("Invalid command %s" % args.command)
 
         main_writes = xds_to_table(output_ds, args.output, "ALL",
                                    descriptor="ms(False)")
+
+        spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
+        spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
 
         copy_subtables(args.ms, args.output, subtables)
 
@@ -140,11 +142,10 @@ class Application(object):
         # Set up row chunks
         chunks = [{'row': rc} for rc in row_chunks]
 
-        main_ds, tabkw, colkw = xds_from_ms(args.ms,
-                                            group_cols=GROUP_COLS,
-                                            table_keywords=True,
-                                            column_keywords=True,
-                                            chunks=chunks)
+        main_ds, tabkw = xds_from_ms(args.ms,
+                                     group_cols=GROUP_COLS,
+                                     table_keywords=True,
+                                     chunks=chunks)
 
         # Figure out non SPW + SORTED sub-tables to just copy
         subtables = {k for k, v in tabkw.items() if
