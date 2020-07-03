@@ -383,27 +383,6 @@ def average_spw(spw_ds, chan_bin_size):
     return new_spw_ds
 
 
-def _avg_wrapper(decorr_chan_width, nchan,
-                 spw_num_chan,
-                 spw_chan_width,
-                 spw_chan_freq,
-                 spw_effective_bw,
-                 spw_resolution):
-
-    spw_num_chan = spw_num_chan
-    spw_chan_width = spw_chan_width[0]
-    spw_chan_freq = spw_chan_freq[0]
-    spw_effective_bw = spw_effective_bw[0]
-    spw_resolution = spw_resolution[0]
-
-    unum_chan, idx, inv = np.unique(nchan,
-                                    return_index=True,
-                                    return_inverse=True)
-    print(unum_chan, decorr_chan_width[idx])
-
-    return decorr_chan_width
-
-
 def _channelisations(num_chan, decorr_chan_width, data_desc_id):
     num_chan, idx = np.unique(num_chan, return_index=True)
     return num_chan, decorr_chan_width[idx], data_desc_id[idx]
