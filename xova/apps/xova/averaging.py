@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from operator import getitem
+
 from africanus.averaging.dask import (time_and_channel,
                                       bda,
                                       tc_chan_metadata,
@@ -474,6 +476,8 @@ def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
 
     Returns
     -------
+    output_ds : list of Datasets
+        list of Datasets
     spw_ds : list of Datasets
         list of Datasets, each describing an averaged Spectral Window
     """
@@ -548,8 +552,6 @@ def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
                                 adjust_chunks=adjust_chunks,
                                 meta=np.empty((0,), dtype=np.object))
 
-        from operator import getitem
-
         chan_freq = da.blockwise(getitem, ("row", "chan"),
                                  spw_data, ("row", "chan"),
                                  0, None,
@@ -590,4 +592,28 @@ def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
         out_spw_ds.append(Dataset(dv))
 
 
-    return out_datasets, out_spw_ds
+    def polarization_id(pol_id, ddid_map):
+        return np.asarray([pol_id[old_ddid]
+                           for (old_ddid, nchans), new_ddid
+                           in ddid_map.items()])
+
+    def spectral_window_id(ddid_map):
+        return np.arange(len(ddid_map))
+
+    pol_id = da.blockwise(polarization_id, ("row",),
+                          ddid_ds.POLARIZATION_ID.data, ("row",),
+                          new_ddid, (),
+                          adjust_chunks={"row": (np.nan,)},
+                          dtype=ddid_ds.POLARIZATION_ID.dtype)
+
+    spw_id = da.blockwise(spectral_window_id, ("row",),
+                          new_ddid, (),
+                          new_axes={"row": (np.nan,)},
+                          dtype=ddid_ds.SPECTRAL_WINDOW_ID.dtype)
+
+    out_ddid_ds = Dataset({
+        "SPECTRAL_WINDOW_ID": (("row",), spw_id),
+        "POLARIZATION_ID": (("row",), pol_id),
+    })
+
+    return out_datasets, out_spw_ds, out_ddid_ds

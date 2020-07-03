@@ -70,8 +70,6 @@ class Application(object):
                                      viscolumn=args.data_column)
 
             spw_ds = average_spw(spw_ds, args.chan_bin_size)
-            # spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
-            # spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
         elif args.command == "bda":
             output_ds = bda_average_main(main_ds,
                                          field_ds,
@@ -84,7 +82,10 @@ class Application(object):
                                          args.respect_flag_row,
                                          viscolumn=args.data_column)
 
-            output_ds, spw_ds = bda_average_spw(main_ds, output_ds, ddid_ds, spw_ds)
+            output_ds, spw_ds, out_ddid_ds = bda_average_spw(main_ds,
+                                                             output_ds,
+                                                             ddid_ds,
+                                                             spw_ds)
         else:
             raise ValueError("Invalid command %s" % args.command)
 
@@ -94,9 +95,16 @@ class Application(object):
         spw_table = "::".join((args.output, "SPECTRAL_WINDOW"))
         spw_writes = xds_to_table(spw_ds, spw_table, "ALL")
 
+        if args.command == "bda":
+            ddid_table = "::".join((args.output, "DATA_DESCRIPTION"))
+            ddid_writes = xds_to_table(out_ddid_ds, ddid_table, "ALL")
+            subtables.discard("DATA_DESCRIPTION")
+        else:
+            ddid_writes = None
+
         copy_subtables(args.ms, args.output, subtables)
 
-        self._execute_graph(main_writes, spw_writes)
+        self._execute_graph(main_writes, spw_writes, ddid_writes)
 
     def _execute_graph(self, *writes):
         # Set up Profilers and Progress Bars
