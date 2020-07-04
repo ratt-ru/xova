@@ -216,8 +216,12 @@ def average_main(main_ds, field_ds,
 
         # Default kwargs.
         kwargs = {'time_bin_secs': time_bin_secs,
-                  'chan_bin_size': chan_bin_size,
-                  'vis': dv[viscolumn].data}
+                  'chan_bin_size': chan_bin_size}
+
+        try:
+            kwargs['vis'] = dv[viscolumn].data
+        except KeyError as e:
+            raise ValueError("Visibility column %s not present" % viscolumn)
 
         # Other columns with directly transferable names
         columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',
@@ -303,8 +307,12 @@ def bda_average_main(main_ds,
 
         # Default kwargs.
         kwargs = {'decorrelation': decorrelation,
-                  'vis': dv[viscolumn].data,
                   'format': 'ragged'}
+
+        try:
+            kwargs['vis'] = dv[viscolumn].data
+        except KeyError as e:
+            raise ValueError("Visibility column %s not present" % viscolumn)
 
         # Other columns with directly transferable names
         columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',
