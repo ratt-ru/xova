@@ -8,9 +8,21 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-requirements = ['codex-africanus[dask] >= 0.2.1',
-                'dask-ms >= 0.2.4',
-                'loguru']
+
+requirements = [
+    # TODO(sjperkins)
+    # Depend on actual releases once this branch is merged
+    'codex-africanus[dask]'
+    '@git+https://github.com/ska-sa/codex-africanus.git'
+    '@time-and-channel-bda',
+
+    # TODO(sjperkins)
+    # Depend on actual releases once this branch is merged
+    'dask-ms'
+    '@git+https://github.com/ska-sa/dask-ms.git'
+    '@support-dict-writes',
+
+    'loguru']
 
 extras_require = {
     'testing': ['pytest', 'pytest-flake8']
