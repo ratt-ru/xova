@@ -16,6 +16,7 @@ import dask
 from daskms import xds_from_ms, xds_from_table, xds_to_table
 from loguru import logger
 
+from xova import __version__ as xova_version
 import xova.apps.xova.logger_init  # noqa
 from xova.apps.xova.arguments import parse_args, log_args
 from xova.apps.xova.averaging import (average_main,
@@ -44,6 +45,7 @@ class Application(object):
 
     def execute(self):
         """ Execute the application """
+        logger.info("xova version {v}", v=xova_version)
         logger.info("xova {args}", args=" ".join(self.cmdline_args))
 
         self.args = args = parse_args(self.cmdline_args)
