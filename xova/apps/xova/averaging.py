@@ -36,7 +36,7 @@ def _safe_concatenate(args):
         raise TypeError("Unhandled arg type %s" % type(args[0]))
 
 
-def concatenate_row_chunks(array, group_every=4):
+def row_concatenate(array, group_every=4):
     """
     Parameters
     ----------
@@ -163,7 +163,7 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
     # Concatenate row chunks together
     if group_row_chunks > 1:
         grc = group_row_chunks
-        out_ds = {k: (dims, concatenate_row_chunks(data, group_every=grc))
+        out_ds = {k: (dims, row_concatenate(data, group_every=grc))
                   for k, (dims, data) in out_ds.items()}
 
     return Dataset(out_ds)
@@ -220,7 +220,7 @@ def average_main(main_ds, field_ds,
 
         try:
             kwargs['vis'] = dv[viscolumn].data
-        except KeyError as e:
+        except KeyError:
             raise ValueError("Visibility column %s not present" % viscolumn)
 
         # Other columns with directly transferable names
@@ -311,7 +311,7 @@ def bda_average_main(main_ds,
 
         try:
             kwargs['vis'] = dv[viscolumn].data
-        except KeyError as e:
+        except KeyError:
             raise ValueError("Visibility column %s not present" % viscolumn)
 
         # Other columns with directly transferable names
@@ -393,96 +393,148 @@ def average_spw(spw_ds, chan_bin_size):
     return new_spw_ds
 
 
-def _channelisations(num_chan, decorr_chan_width, data_desc_id):
-    num_chan, idx = np.unique(num_chan, return_index=True)
-    return num_chan, decorr_chan_width[idx], data_desc_id[idx]
+def _channelisations(ddid, num_chan, spw_id, pol_id):
+    ddid_chan_map = np.stack([ddid,
+                              spw_id[0][ddid],
+                              pol_id[0][ddid],
+                              num_chan], axis=1)
 
-
-def spw_id_fn(spw_id, ddid):
-    return spw_id[0][ddid]
+    return np.unique(ddid_chan_map, axis=0)
 
 
 def _noop(x, keepdims, axis):
     return x
 
 
-def _new_ddid_map(ddid, num_chan, mapping):
-    return np.array([mapping[(d, nc)] for d, nc
-                    in zip(ddid, num_chan)])
-
-
 def combine(x, keepdims, axis):
     if isinstance(x, list):
-        num_chan, decorr_cw, ddid = map(np.concatenate, zip(*x))
-        return _channelisations(num_chan, decorr_cw, ddid)
-    elif isinstance(x, tuple):
+        return np.unique(np.concatenate(x), axis=0)
+    elif isinstance(x, np.ndarray):
         return x
     else:
         raise TypeError("Unhandled combine type %s" % type(x))
 
 
 def aggregate(x, keepdims, axis):
-    num_chans, chan_width, ddid = (x if not isinstance(x, list) else
-                                   combine(x, keepdims, axis))
-
-    new_ddids = np.unique(np.stack([ddid, num_chans], axis=1), axis=0)
-    return {(d, nc): i for i, (d, nc) in enumerate(new_ddids)}
+    return (x if not isinstance(x, list) else
+            combine(x, keepdims, axis))
 
 
-def polarization_id(pol_id, ddid_map):
-    return np.asarray([pol_id[old_ddid]
-                        for (old_ddid, nchans), new_ddid
-                        in ddid_map.items()])
-
-def spectral_window_id(ddid_map):
-    return np.arange(len(ddid_map))
-
-
-def create_spw(chan_freq, chan_width, ref_freq, ddid_map, ddid):
-    chan_freq = chan_freq.squeeze()
-    chan_width = chan_width.squeeze()
-    ref_freq = ref_freq.squeeze()
-
-    bandwidth = chan_width.sum()
-
-    if not all(chan_width[0] == cw for cw in chan_width[1:]):
-        raise ValueError("CHAN_WIDTH values differ in DDID %d" % ddid)
-
-    if not np.all(np.diff(chan_freq) > 0):
-        raise ValueError("Decreasing CHAN_FREQ in DDID %d" % ddid)
-
-    rcw = {}
-    rcf = {}
-    rnc = {}
-    rrf = {}
-    rtbw = {}
-    rowid = 1
-
-    for (dd, nchan), new_ddid in ddid_map.items():
-        if dd == ddid:
-            # Current band end points
-            start = chan_freq[0] - chan_width[0] / 2
-            end = chan_freq[-1] + chan_width[0] / 2
-            cw = np.full(nchan, bandwidth / nchan)
-            # Create new channelisation
-            cf = np.linspace(start + cw[0] / 2, end - cw[-1] / 2, nchan)
-            key = "r%d" % rowid
-            rcw[key] = cw[None, :]
-            rcf[key] = cf[None, :]
-            rnc[key] = np.array([nchan])
-            rrf[key] = np.array([ref_freq])
-            rtbw[key] = np.array([bandwidth])
-            rowid += 1
-
-    return rcw, rcf, rnc, rrf, rtbw
-
-
-def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
+def ddid_and_spw_factory(chan_freqs, chan_widths,
+                         ref_freqs, meas_freq_refs,
+                         ddid_chan_map):
     """
     Parameters
     ----------
-    in_datasets : list of Datasets
-        list of Datasets
+    chan_freqs : tuple of :class:`numpy.ndarray`
+        Tuple of channel frequencies for each SPW
+    chan_widths : tuple of :class:`numpy.ndarray`
+        Tuple of channel widths for each SPW
+    ref_freqs : tuple of :class:`numpy.ndarray`
+        Tuple of reference frequencies for each SPW
+    meas_freq_refs : tuple of :class:`numpy.ndarray`
+        Tuple of Measure Frequency References for each SPW
+    ddid_chan_map : dict
+        Data Descriptor ID channelisation map
+
+    Returns
+    -------
+    rcw : dict
+        channel ("CHAN_WIDTH") width row entries
+        suitable for putvarcol
+    rcf : dict
+        channel frequency ("CHAN_FREQ") row entries
+        suitable for putvarcol
+    rnc : dict
+        number of channel ("NUM_CHAN") row entries
+        suitable for putvarcol
+    rrf : dict
+        reference frequency ("REF_FREQUENCY") row entries
+        suitable for putvarcol
+    rtbw : dict
+        total bandwidth ("TOTAL_BANDWIDTH") row entries
+        suitable for putvarcol
+    spectral_window_ids : :class:`np.ndarray`
+        new SPECTRAL_WINDOW_ID values for insertion into
+        DATA_DESCRIPTION subtable.
+    polarization_ids : :class:`np.ndarray`
+        new POLARIZATION_ID values for insertion into
+        DATA_DESCRIPTION subtable
+    new_ddid_map : dict
+        {(old_ddid, num_chan): new_ddid} map, suitable
+        for creating new DATA_DESC_ID arrays.
+    """
+    # Find unique channelisations per SPW
+    spw_chan_map = ddid_chan_map[:, (1, 3)]
+    uspw_chan_map, idx, inv = np.unique(spw_chan_map,
+                                        return_index=True,
+                                        return_inverse=True,
+                                        axis=0)
+
+    # Sanity checks
+    if not all(np.all(np.diff(cf) > 0.0) for cf in chan_freqs):
+        raise ValueError("Decreasing CHAN_FREQ unsupported")
+
+    if not all(np.all(cw[0] == c for c in cw) for cw in chan_widths):
+        raise ValueError("Heterogenous CHAN_WIDTH unsupported")
+
+    rowid = 0
+    rcw = {}    # CHAN_WIDTH
+    rcf = {}    # CHAN_FREQ
+    rnc = {}    # NUM_CHAN
+    rrf = {}    # REF_FREQUENCY
+    rtbw = {}   # TOTAL_BANDWIDTH
+    rmrf = {}   # MEAS_FREQ_REF
+
+    # Generate SPW's for each channelisation
+    for spw, nchan in uspw_chan_map:
+        start = chan_freqs[spw][0] - chan_widths[spw][0] / 2
+        end = chan_freqs[spw][-1] + chan_widths[spw][-1] / 2
+
+        bandwidth = chan_widths[spw].sum()  # Maybe TOTAL_BANDWIDTH?
+        cw = np.full(nchan, bandwidth / nchan)
+        cf = np.linspace(start - cw[0] / 2,
+                         end + cw[-1] / 2,
+                         nchan)
+
+        key = "r%d" % rowid
+        rcw[key] = cw[None, :]
+        rcf[key] = cf[None, :]
+        rnc[key] = np.array([nchan])
+        rrf[key] = np.array([ref_freqs[spw]])
+        rmrf[key] = np.array([meas_freq_refs[spw]])
+        rtbw[key] = np.array([bandwidth])
+        rowid += 1
+
+    # Create the SPECTRAL_WINDOW_ID, POLARIZATION_ID and
+    # {(old_ddid, num_chan): new_ddid} mapping
+    spectral_window_ids = []
+    polarization_ids = []
+    new_ddid_map = {}
+
+    it = enumerate(np.concatenate((ddid_chan_map, inv[:, None]), axis=1))
+    for new_ddid, (old_ddid, _, pol_id, nchan, spw_id) in it:
+        spectral_window_ids.append(spw_id)
+        polarization_ids.append(pol_id)
+        new_ddid_map[(old_ddid, nchan)] = new_ddid
+
+    spectral_window_ids = np.asarray(spectral_window_ids)
+    polarization_ids = np.asarray(polarization_ids)
+
+    return (rcf, rcw, rnc, rrf, rmrf, rtbw,
+            spectral_window_ids, polarization_ids,
+            new_ddid_map)
+
+
+def _new_ddids(old_ddid, num_chan, ddid_map):
+    ddid_map = ddid_map[0]
+    return np.asarray([ddid_map[(d, nc)] for d, nc in zip(old_ddid, num_chan)])
+
+
+def bda_average_spw(out_datasets, ddid_ds, spw_ds):
+    """
+    Parameters
+    ----------
     out_datasets : list of Datasets
         list of Datasets
     ddid_ds : Dataset
@@ -503,24 +555,12 @@ def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
     # Over the entire set of datasets, determine the complete
     # set of channelisations, per input DDID and
     # reduce down to a single object
-    for in_ds, out_ds in zip(in_datasets, out_datasets):
-        spw_id = ddid_ds.SPECTRAL_WINDOW_ID.values[in_ds.DATA_DESC_ID]
-        pol_id = ddid_ds.POLARIZATION_ID.values[in_ds.DATA_DESC_ID]
-        spw = spw_ds[spw_id]
-
-        assert len(spw.CHAN_WIDTH.data[0].chunks) == 1
-
-        data_desc_id = id_full_like(out_ds.TIME.data, in_ds.DATA_DESC_ID)
-
-        spw_id = da.blockwise(spw_id_fn, ("row",),
-                              ddid_ds.SPECTRAL_WINDOW_ID.data, ("ddid",),
-                              out_ds.DATA_DESC_ID.data, ("row",),
-                              dtype=ddid_ds.SPECTRAL_WINDOW_ID.dtype)
-
+    for out_ds in out_datasets:
         transform = da.blockwise(_channelisations, ("row",),
+                                 out_ds.DATA_DESC_ID.data, ("row",),
                                  out_ds.NUM_CHAN.data, ("row",),
-                                 out_ds.DECORR_CHAN_WIDTH.data, ("row",),
-                                 data_desc_id, ("row",),
+                                 ddid_ds.SPECTRAL_WINDOW_ID.data, ("ddid",),
+                                 ddid_ds.POLARIZATION_ID.data, ("ddid",),
                                  meta=np.empty((0,), dtype=np.object))
 
         result = da.reduction(transform,
@@ -536,100 +576,126 @@ def bda_average_spw(in_datasets, out_datasets, ddid_ds, spw_ds):
 
     # Final reduction object, note the aggregate method
     # which generates the mapping
-    new_ddid = da.reduction(da.concatenate(channelisations),
-                            chunk=_noop,
-                            combine=combine,
-                            aggregate=aggregate,
-                            concatenate=False,
-                            keepdims=False,
-                            meta=np.empty((), dtype=np.object),
-                            dtype=np.object)
+    ddid_chan_map = da.reduction(da.concatenate(channelisations),
+                                 chunk=_noop,
+                                 combine=combine,
+                                 aggregate=aggregate,
+                                 concatenate=False,
+                                 keepdims=False,
+                                 meta=np.empty((), dtype=np.object),
+                                 dtype=np.object)
 
-    # Set up the DATA_DESC_ID for each output dataset
-    for i, out_ds in enumerate(out_datasets):
-        ddid = da.blockwise(_new_ddid_map, ("row",),
-                            out_ds.DATA_DESC_ID.data, ("row",),
-                            out_ds.NUM_CHAN.data, ("row",),
-                            new_ddid, (),
-                            dtype=out_ds.DATA_DESC_ID.dtype)
+    def _squeeze_tuplify(*args):
+        return tuple(a.squeeze() for a in args)
 
-        out_datasets[i] = out_ds.assign(DATA_DESC_ID=(("row",), ddid))
+    chan_freqs = da.blockwise(_squeeze_tuplify, ("row", "chan"),
+                              *(a for spw in spw_ds for a
+                                in (spw.CHAN_FREQ.data, ("row", "chan"))),
+                              concatenate=False,
+                              align_arrays=False,
+                              adjust_chunks={"chan": lambda c: np.nan},
+                              meta=np.empty((0, 0), dtype=np.object))
 
-    # Generate Spectral Windows for each DDID and channelisation
-    out_spw_ds = []
-    it = zip(ddid_ds.SPECTRAL_WINDOW_ID.values, ddid_ds.POLARIZATION_ID.values)
+    chan_widths = da.blockwise(_squeeze_tuplify, ("row", "chan"),
+                               *(a for spw in spw_ds for a
+                                 in (spw.CHAN_WIDTH.data, ("row", "chan"))),
+                               concatenate=False,
+                               align_arrays=False,
+                               adjust_chunks={"chan": lambda c: np.nan},
+                               meta=np.empty((0, 0), dtype=np.object))
 
-    for dd_id, (spw_id, pol_id) in enumerate(it):
-        spw = spw_ds[spw_id]
-        dv = dict(spw.data_vars)
+    ref_freqs = da.blockwise(_squeeze_tuplify, ("row",),
+                             *(a for spw in spw_ds for a
+                               in (spw.REF_FREQUENCY.data, ("row",))),
+                             concatenate=False,
+                             align_arrays=False,
+                             meta=np.empty((0,), dtype=np.object))
 
-        adjust_chunks = {
-            "row": (np.nan,) * len(spw.CHAN_FREQ.data.chunks[0]),
-            "chan": (np.nan,) * len(spw.CHAN_FREQ.data.chunks[1])}
+    meas_freq_refs = da.blockwise(_squeeze_tuplify, ("row",),
+                                  *(a for spw in spw_ds for a
+                                    in (spw.REF_FREQUENCY.data, ("row",))),
+                                  concatenate=False,
+                                  align_arrays=False,
+                                  meta=np.empty((0,), dtype=np.object))
 
-        spw_data = da.blockwise(create_spw, ("row", "chan"),
-                                dv['CHAN_FREQ'].data, ("row", "chan"),
-                                dv['CHAN_WIDTH'].data, ("row", "chan"),
-                                dv['REF_FREQUENCY'].data, ("row",),
-                                new_ddid, (),
-                                dd_id, None,
-                                adjust_chunks=adjust_chunks,
-                                meta=np.empty((0,), dtype=np.object))
+    result = da.blockwise(ddid_and_spw_factory, ("row", "chan"),
+                          chan_freqs, ("row", "chan"),
+                          chan_widths, ("row", "chan"),
+                          ref_freqs, ("row",),
+                          meas_freq_refs, ("row",),
+                          ddid_chan_map, (),
+                          meta=np.empty((0, 0), dtype=np.object))
 
-        chan_freq = da.blockwise(getitem, ("row", "chan"),
-                                 spw_data, ("row", "chan"),
-                                 0, None,
-                                 dtype=spw.CHAN_FREQ.dtype)
+    # There should only be one chunk
+    assert result.npartitions == 1
 
-        chan_width = da.blockwise(getitem, ("row", "chan"),
-                                  spw_data, ("row", "chan"),
-                                  1, None,
-                                  dtype=spw.CHAN_WIDTH.dtype)
+    chan_freq = da.blockwise(getitem, ("row", "chan"),
+                             result, ("row", "chan"),
+                             0, None,
+                             dtype=np.float64)
 
+    chan_width = da.blockwise(getitem, ("row", "chan"),
+                              result, ("row", "chan"),
+                              1, None,
+                              dtype=np.float64)
 
-        num_chan = da.blockwise(lambda d, i: d[0][i], ("row",),
-                                spw_data, ("row", "chan"),
-                                2, None,
-                                dtype=spw.NUM_CHAN.dtype)
+    num_chan = da.blockwise(lambda d, i: d[0][i], ("row",),
+                            result, ("row", "chan"),
+                            2, None,
+                            dtype=np.int32)
 
-        ref_freq = da.blockwise(lambda d, i: d[0][i], ("row",),
-                                spw_data, ("row", "chan"),
-                                3, None,
-                                dtype=spw.REF_FREQUENCY.dtype)
+    ref_freq = da.blockwise(lambda d, i: d[0][i], ("row",),
+                            result, ("row", "chan"),
+                            3, None,
+                            dtype=np.float64)
 
-        total_bw = da.blockwise(lambda d, i: d[0][i], ("row",),
-                                spw_data, ("row", "chan"),
-                                4, None,
-                                dtype=spw.TOTAL_BANDWIDTH.dtype)
+    meas_freq_refs = da.blockwise(lambda d, i: d[0][i], ("row",),
+                                  result, ("row", "chan"),
+                                  4, None,
+                                  dtype=np.float64)
 
+    total_bw = da.blockwise(lambda d, i: d[0][i], ("row",),
+                            result, ("row", "chan"),
+                            5, None,
+                            dtype=np.float64)
 
-        dv = {
-            "CHAN_FREQ": (("row", "chan"), chan_freq),
-            "CHAN_WIDTH": (("row", "chan"), chan_width),
-            "EFFECTIVE_BW": (("row", "chan"), chan_width),
-            "RESOLUTION": (("row", "chan"), chan_width),
-            "NUM_CHAN": (("row",), num_chan),
-            "REF_FREQUENCY": (("row",), ref_freq),
-            "TOTAL_BANDWIDTH": (("row",), total_bw)
-        }
+    spectral_window_id = da.blockwise(lambda d, i: d[0][i], ("row",),
+                                      result, ("row", "chan"),
+                                      6, None,
+                                      dtype=np.int32)
 
-        out_spw_ds.append(Dataset(dv))
+    polarization_id = da.blockwise(lambda d, i: d[0][i], ("row",),
+                                   result, ("row", "chan"),
+                                   7, None,
+                                   dtype=np.int32)
 
-    # Now construct the DATA_DESCRIPTION table
-    pol_id = da.blockwise(polarization_id, ("row",),
-                          ddid_ds.POLARIZATION_ID.data, ("row",),
-                          new_ddid, (),
-                          adjust_chunks={"row": (np.nan,)},
-                          dtype=ddid_ds.POLARIZATION_ID.dtype)
+    ddid_map = da.blockwise(lambda d, i: d[0][i], ("row",),
+                            result, ("row", "chan"),
+                            8, None,
+                            dtype=np.int32)
 
-    spw_id = da.blockwise(spectral_window_id, ("row",),
-                          new_ddid, (),
-                          new_axes={"row": (np.nan,)},
-                          dtype=ddid_ds.SPECTRAL_WINDOW_ID.dtype)
+    for o, out_ds in enumerate(out_datasets):
+        data_desc_id = da.blockwise(_new_ddids, ("row",),
+                                    out_ds.DATA_DESC_ID.data, ("row",),
+                                    out_ds.NUM_CHAN.data, ("row",),
+                                    ddid_map, ("ddid",),
+                                    dtype=out_ds.DATA_DESC_ID.dtype)
 
-    out_ddid_ds = Dataset({
-        "SPECTRAL_WINDOW_ID": (("row",), spw_id),
-        "POLARIZATION_ID": (("row",), pol_id),
+        out_datasets[o] = out_ds.assign(DATA_DESC_ID=(("row",), data_desc_id))
+
+    out_spw_ds = Dataset({
+        "CHAN_FREQ": (("row", "chan"), chan_freq),
+        "CHAN_WIDTH": (("row", "chan"), chan_width),
+        "EFFECTIVE_BW": (("row", "chan"), chan_width),
+        "RESOLUTION": (("row", "chan"), chan_width),
+        "NUM_CHAN": (("row",), num_chan),
+        "REF_FREQUENCY": (("row",), ref_freq),
+        "TOTAL_BANDWIDTH": (("row",), total_bw)
     })
 
-    return out_datasets, out_spw_ds, out_ddid_ds
+    out_ddid_ds = Dataset({
+        "SPECTRAL_WINDOW_ID": (("row",), spectral_window_id),
+        "POLARIZATION_ID": (("row",), polarization_id),
+    })
+
+    return out_datasets, [out_spw_ds], out_ddid_ds

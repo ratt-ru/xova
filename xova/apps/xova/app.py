@@ -84,8 +84,7 @@ class Application(object):
                                          args.respect_flag_row,
                                          viscolumn=args.data_column)
 
-            output_ds, spw_ds, out_ddid_ds = bda_average_spw(main_ds,
-                                                             output_ds,
+            output_ds, spw_ds, out_ddid_ds = bda_average_spw(output_ds,
                                                              ddid_ds,
                                                              spw_ds)
         else:
