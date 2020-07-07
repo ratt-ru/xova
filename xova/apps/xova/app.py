@@ -23,6 +23,7 @@ from xova.apps.xova.averaging import (average_main,
                                       bda_average_main,
                                       average_spw,
                                       bda_average_spw)
+from xova.apps.xova.check import check_ms
 from xova.apps.xova.chunking import dataset_chunks
 from xova.apps.xova.subtables import copy_subtables
 
@@ -50,6 +51,12 @@ class Application(object):
 
         self.args = args = parse_args(self.cmdline_args)
         log_args(args)
+
+        if args.command == "check":
+            check_ms(args)
+            logger.info("MS is conformant")
+            return
+
         self._create_output_ms(args)
 
         row_chunks, time_chunks, interval_chunks = self._derive_row_chunking(

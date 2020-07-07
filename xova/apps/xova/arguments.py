@@ -80,6 +80,7 @@ def create_parser():
     tc_parser = sp.add_parser("timechannel")
     bda_parser = sp.add_parser("bda")
 
+    # Set up time channel and bda parsers
     for p in (tc_parser, bda_parser):
         p.add_argument("ms", help="Input Measurement Set")
         p.add_argument("-f", "--fields", type=_parse_fields, default="")
@@ -107,6 +108,7 @@ def create_parser():
                        type=str,
                        help="Column to average. Default CORRECTED_DATA")
 
+    # Time channel specific args
     tc_parser.add_argument("-t", "--time-bin-secs", default=2.0, type=float,
                            help="Number of seconds to "
                                 "average into a single bin")
@@ -114,18 +116,29 @@ def create_parser():
                            help="Number of channels to "
                                 "average into a single bin")
 
+    # BDA Specific args
     bda_parser.add_argument("-d", "--decorrelation", default=.99, type=float,
                             help="Acceptable decorrrelation factor")
+
+    # Table Conformance Checking
+    check_parser = sp.add_parser("check")
+
+    check_parser.add_argument("ms", help="Input Measurement Set")
+    check_parser.add_argument("-r", "--row_chunks", type=int, default=1000)
 
     return parser
 
 
 def log_args(args):
     logger.info("Configuration:")
+
     if args.command == "timechannel":
         logger.info("Standard Time and Channel Averaging")
     elif args.command == "bda":
         logger.info("Baseline-Dependant Time and Channel Averaging")
+    elif args.command == "check":
+        logger.info("Checking MS conformance of {ms}", ms=args.ms)
+        return
 
     logger.info("\tAveraging '{ms}' to '{out}'", ms=args.ms, out=args.output)
 
@@ -160,6 +173,9 @@ def log_args(args):
 
 
 def postprocess_args(args):
+    if args.command == "check":
+        return args
+
     # Create output if not specified
     if args.output is None:
         path, msname = os.path.split(args.ms.rstrip(os.sep))

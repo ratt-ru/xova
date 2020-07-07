@@ -681,7 +681,12 @@ def bda_average_spw(out_datasets, ddid_ds, spw_ds):
                                     ddid_map, ("ddid",),
                                     dtype=out_ds.DATA_DESC_ID.dtype)
 
-        out_datasets[o] = out_ds.assign(DATA_DESC_ID=(("row",), data_desc_id))
+        dv = dict(out_ds.data_vars)
+        dv["DATA_DESC_ID"] = (("row",), data_desc_id)
+        del dv["NUM_CHAN"]
+        del dv["DECORR_CHAN_WIDTH"]
+
+        out_datasets[o] = Dataset(dv, out_ds.coords, out_ds.attrs)
 
     out_spw_ds = Dataset({
         "CHAN_FREQ": (("row", "chan"), chan_freq),
