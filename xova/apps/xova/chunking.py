@@ -60,6 +60,24 @@ def _time_int_agg(x_chunk, axis, keepdims):
 
 
 class DatasetGrouper(object):
+    """
+    Applies a two-phase row grouping strategy.
+
+    1. Groups ``time_bin_secs`` rows together.
+    2. Then aggregates row groups from (1) until
+       ``max_row_chunks`` is reached.
+
+    Parameters
+    ----------
+    time_bin_secs : float
+        How many seconds worth of rows to aggregate.
+        -1.0 disables this feature.
+    max_row_chunks : int
+        Maximum number of rows to aggregate together,
+        *after* time_bin_secs worth of rows have been aggregated.
+        The grouper will not respect this value if a
+        time grouping exceeds ``max_row_chunks``
+    """
     def __init__(self, time_bin_secs, max_row_chunks):
         self.time_bin_secs = time_bin_secs
         self.max_row_chunks = max_row_chunks
@@ -100,7 +118,7 @@ class DatasetGrouper(object):
 
             dsit = enumerate(zip(utime[1:], avg_interval[1:], counts[1:]))
             for ti, (ut, avg_int, count) in dsit:
-                if avg_int > self.time_bin_secs:
+                if avg_int > self.time_bin_secs and self.time_bin_secs != -1.0:
                     logger.warning("The average INTERVAL associated with "
                                    "unique time {:3f} in dataset {:d} "
                                    "is {:3f} but this exceeds the requested "

@@ -54,10 +54,10 @@ class Application(object):
 
         if args.command == "check":
             check_ms(args)
-            logger.info("MS is conformant")
+            logger.info("{ms} is conformant".format(ms=args.ms))
             return
 
-        self._create_output_ms(args)
+        self._maybe_remove_output_ms(args)
 
         row_chunks, time_chunks, interval_chunks = self._derive_row_chunking(
             args)
@@ -137,7 +137,7 @@ class Application(object):
         if can_profile:
             visualize(profilers)
 
-    def _create_output_ms(self, args):
+    def _maybe_remove_output_ms(self, args):
         # Check for existence of output
         if os.path.exists(args.output):
             if args.force is True:
@@ -151,8 +151,13 @@ class Application(object):
                                columns=["TIME", "INTERVAL"],
                                chunks={'row': args.row_chunks})
 
-        return dataset_chunks(datasets, getattr(args, "time_bin_secs", 32),
-                              args.row_chunks)
+        if args.command == "timechannel":
+            time_bins_secs = args.time_bins_secs
+        else:
+            time_bin_secs = -1.0
+
+        return dataset_chunks(datasets, time_bin_secs, args.row_chunks)
+
 
     def _input_datasets(self, args, row_chunks):
         # Set up row chunks
