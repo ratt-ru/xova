@@ -254,6 +254,7 @@ def bda_average_main(main_ds,
                      ddid_ds,
                      spw_ds,
                      decorrelation,
+                     min_nchan,
                      fields,
                      scan_numbers,
                      group_row_chunks,
@@ -273,6 +274,8 @@ def bda_average_main(main_ds,
         Each Dataset correspond to a row of the SPECTRAL_WINDOW table.
     decorrelation : float
         Decorrelation factor
+    min_nchan : int
+        Minimum number of channels in output
     fields : list
     scan_numbers : list
     group_row_chunks : int, optional
@@ -307,6 +310,7 @@ def bda_average_main(main_ds,
 
         # Default kwargs.
         kwargs = {'decorrelation': decorrelation,
+                  'min_nchan': min_nchan,
                   'format': 'ragged'}
 
         try:

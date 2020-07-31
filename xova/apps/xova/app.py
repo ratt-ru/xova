@@ -85,6 +85,7 @@ class Application(object):
                                          ddid_ds,
                                          spw_ds,
                                          args.decorrelation,
+                                         args.min_nchan,
                                          args.fields,
                                          args.scan_numbers,
                                          args.group_row_chunks,

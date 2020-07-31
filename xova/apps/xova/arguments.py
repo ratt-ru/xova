@@ -120,11 +120,17 @@ def create_parser():
     bda_parser.add_argument("-d", "--decorrelation", default=.99, type=float,
                             help="Acceptable decorrrelation factor")
 
+    bda_parser.add_argument("-mc", "--min-nchan", default=1, type=int,
+                            help="Minimum number of channels in output. "
+                                 "This will be rounded up to the nearest "
+                                 "integer factorisation of the "
+                                 "number of input channels")
+
     # Table Conformance Checking
     check_parser = sp.add_parser("check")
 
     check_parser.add_argument("ms", help="Input Measurement Set")
-    check_parser.add_argument("-r", "--row_chunks", type=int, default=1000)
+    check_parser.add_argument("-r", "--row-chunks", type=int, default=10000)
 
     return parser
 
@@ -150,6 +156,11 @@ def log_args(args):
     elif args.command == "bda":
         logger.info("\tAcceptable decorrelation factor {dcf}",
                     dcf=args.decorrelation)
+        logger.info("\tMinimum number of channels in output {mc}. "
+                    "This will be rounded up to the nearest "
+                    "integer factorisation of the "
+                    "number of input channels",
+                    mc=args.min_nchan)
 
     logger.info("\tAveraging column '{col}' into 'DATA'",
                 col=args.data_column)
