@@ -304,7 +304,8 @@ def bda_average_main(main_ds,
 
         spw = ddid_ds.SPECTRAL_WINDOW_ID.values[ds.DATA_DESC_ID]
         ds = ds.assign(REF_FREQ=((), spw_ds[spw].REF_FREQUENCY.data[0]),
-                       CHAN_WIDTH=(("chan",), spw_ds[spw].CHAN_WIDTH.data[0]))
+                       CHAN_WIDTH=(("chan",), spw_ds[spw].CHAN_WIDTH.data[0]),
+                       CHAN_FREQ=(("chan",), spw_ds[spw].CHAN_FREQ.data[0]))
 
         dv = ds.data_vars
 
@@ -321,7 +322,7 @@ def bda_average_main(main_ds,
         # Other columns with directly transferable names
         columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',
                    'UVW', 'FLAG', 'WEIGHT_SPECTRUM', 'SIGMA_SPECTRUM',
-                   'REF_FREQ', 'CHAN_WIDTH']
+                   'REF_FREQ', 'CHAN_WIDTH', 'CHAN_FREQ']
 
         for c in columns:
             try:
