@@ -119,6 +119,10 @@ def create_parser():
     # BDA Specific args
     bda_parser.add_argument("-d", "--decorrelation", default=.99, type=float,
                             help="Acceptable decorrrelation factor")
+    bda_parser.add_argument("-lm", "--lm-max", default=1.0, type=float,
+                            help="Maximum distance in the LM plane")
+
+
 
     bda_parser.add_argument("-mc", "--min-nchan", default=1, type=int,
                             help="Minimum number of channels in output. "
