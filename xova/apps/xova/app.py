@@ -85,7 +85,7 @@ class Application(object):
                                          ddid_ds,
                                          spw_ds,
                                          args.decorrelation,
-                                         args.lm_max,
+                                         args.max_fov,
                                          args.min_nchan,
                                          args.fields,
                                          args.scan_numbers,

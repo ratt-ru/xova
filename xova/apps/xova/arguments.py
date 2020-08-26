@@ -119,8 +119,8 @@ def create_parser():
     # BDA Specific args
     bda_parser.add_argument("-d", "--decorrelation", default=.99, type=float,
                             help="Acceptable decorrrelation factor")
-    bda_parser.add_argument("-lm", "--lm-max", default=1.0, type=float,
-                            help="Maximum distance in the LM plane")
+    bda_parser.add_argument("-fov", "--max-fov", default=15.0, type=float,
+                            help="Maximum Field of View in degrees")
 
 
 
@@ -160,6 +160,7 @@ def log_args(args):
     elif args.command == "bda":
         logger.info("\tAcceptable decorrelation factor {dcf}",
                     dcf=args.decorrelation)
+        logger.info("\tMaximum Field of View {fov} degrees", fov=args.max_fov)
         logger.info("\tMinimum number of channels in output {mc}. "
                     "This will be rounded up to the nearest "
                     "integer factorisation of the "

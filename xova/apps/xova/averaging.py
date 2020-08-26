@@ -254,7 +254,7 @@ def bda_average_main(main_ds,
                      ddid_ds,
                      spw_ds,
                      decorrelation,
-                     lm_max,
+                     max_fov,
                      min_nchan,
                      fields,
                      scan_numbers,
@@ -275,8 +275,8 @@ def bda_average_main(main_ds,
         Each Dataset correspond to a row of the SPECTRAL_WINDOW table.
     decorrelation : float
         Decorrelation factor
-    lm_max : float
-        Maximum distance in the LM plane
+    max_fov : float
+        Maximum Field of View in degrees
     min_nchan : int
         Minimum number of channels in output
     fields : list
@@ -314,7 +314,7 @@ def bda_average_main(main_ds,
 
         # Default kwargs.
         kwargs = {'decorrelation': decorrelation,
-                  'lm_max': lm_max,
+                  'max_fov': max_fov,
                   'min_nchan': min_nchan,
                   'format': 'ragged'}
 
