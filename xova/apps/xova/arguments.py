@@ -123,7 +123,7 @@ def create_parser():
     bda_parser.add_argument("-d", "--decorrelation", default=.99, type=float,
                             help="Acceptable decorrrelation factor")
     bda_parser.add_argument("-fov", "--max-fov", default=15.0, type=float,
-                            help="Maximum Field of View in degrees")
+                            help="Maximum Field of View (radius) in degrees")
     bda_parser.add_argument("-mc", "--min-nchan", default=1, type=int,
                             help="Minimum number of channels in output. "
                                  "This will be rounded up to the nearest "
