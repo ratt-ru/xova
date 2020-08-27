@@ -17,10 +17,10 @@ requirements = [
     '@time-and-channel-bda',
 
     # TODO(sjperkins)
-    # Depend on actual releases once this branch is merged
+    # Depend on actual releases
     'dask-ms'
     '@git+https://github.com/ska-sa/dask-ms.git'
-    '@support-dict-writes',
+    '@master',
 
     'loguru']
 
