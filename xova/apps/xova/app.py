@@ -84,14 +84,7 @@ class Application(object):
                                          field_ds,
                                          ddid_ds,
                                          spw_ds,
-                                         args.decorrelation,
-                                         args.max_fov,
-                                         args.min_nchan,
-                                         args.fields,
-                                         args.scan_numbers,
-                                         args.group_row_chunks,
-                                         args.respect_flag_row,
-                                         viscolumn=args.data_column)
+                                         args)
 
             output_ds, spw_ds, out_ddid_ds = bda_average_spw(output_ds,
                                                              ddid_ds,
@@ -153,12 +146,7 @@ class Application(object):
                                columns=["TIME", "INTERVAL"],
                                chunks={'row': args.row_chunks})
 
-        if args.command == "timechannel":
-            time_bins_secs = args.time_bins_secs
-        else:
-            time_bin_secs = -1.0
-
-        return dataset_chunks(datasets, time_bin_secs, args.row_chunks)
+        return dataset_chunks(datasets, args.time_bin_secs, args.row_chunks)
 
 
     def _input_datasets(self, args, row_chunks):

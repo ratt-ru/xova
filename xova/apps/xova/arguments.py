@@ -117,13 +117,13 @@ def create_parser():
                                 "average into a single bin")
 
     # BDA Specific args
+    bda_parser.add_argument("-t", "--time-bin-secs", default=None, type=float,
+                            help="Number of seconds to "
+                                 "average into a single bin")
     bda_parser.add_argument("-d", "--decorrelation", default=.99, type=float,
                             help="Acceptable decorrrelation factor")
     bda_parser.add_argument("-fov", "--max-fov", default=15.0, type=float,
                             help="Maximum Field of View in degrees")
-
-
-
     bda_parser.add_argument("-mc", "--min-nchan", default=1, type=int,
                             help="Minimum number of channels in output. "
                                  "This will be rounded up to the nearest "
@@ -160,6 +160,11 @@ def log_args(args):
     elif args.command == "bda":
         logger.info("\tAcceptable decorrelation factor {dcf}",
                     dcf=args.decorrelation)
+
+        if args.time_bin_secs is not None:
+            logger.info("\tAveraging {tbs} seconds together",
+                        tbs=args.time_bin_secs)
+
         logger.info("\tMaximum Field of View {fov} degrees", fov=args.max_fov)
         logger.info("\tMinimum number of channels in output {mc}. "
                     "This will be rounded up to the nearest "

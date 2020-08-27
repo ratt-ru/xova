@@ -118,12 +118,14 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
 
     flag_cats = flag_categories(avg.flag)
 
+    zeros = id_full_like(avg.antenna1, fill_value=0)
+
     out_ds = {
         # Explicitly zero these columns? But this happens anyway
-        # "ARRAY_ID": (("row",), zeros),
-        # "OBSERVATION_ID": (("row",), zeros),
-        # "PROCESSOR_ID": (("row",), zeros),
-        # "STATE_ID": (("row",), zeros),
+        "ARRAY_ID": (("row",), zeros),
+        "OBSERVATION_ID": (("row",), zeros),
+        "PROCESSOR_ID": (("row",), zeros),
+        "STATE_ID": (("row",), zeros),
 
         "ANTENNA1": (("row",), avg.antenna1),
         "ANTENNA2": (("row",), avg.antenna2),
@@ -253,14 +255,7 @@ def bda_average_main(main_ds,
                      field_ds,
                      ddid_ds,
                      spw_ds,
-                     decorrelation,
-                     max_fov,
-                     min_nchan,
-                     fields,
-                     scan_numbers,
-                     group_row_chunks,
-                     respect_flag_row,
-                     viscolumn="DATA"):
+                     args):
     """
     Parameters
     ----------
@@ -273,21 +268,8 @@ def bda_average_main(main_ds,
         Single Dataset containing the DATA_DESCRIPTION table.
     spw_ds : list of Datasets
         Each Dataset correspond to a row of the SPECTRAL_WINDOW table.
-    decorrelation : float
-        Decorrelation factor
-    max_fov : float
-        Maximum Field of View in degrees
-    min_nchan : int
-        Minimum number of channels in output
-    fields : list
-    scan_numbers : list
-    group_row_chunks : int, optional
-        Number of row chunks to concatenate together
-    respect_flag_row : bool
-        Respect FLAG_ROW instead of using FLAG
-        for computing row flags.
-    viscolumn: string
-        name of column to average
+    args : object
+        Application arguments
     Returns
     -------
     avg
@@ -296,37 +278,37 @@ def bda_average_main(main_ds,
     output_ds = []
 
     for ds in main_ds:
-        if fields and ds.FIELD_ID not in fields:
+        if args.fields and ds.FIELD_ID not in args.fields:
             continue
 
-        if scan_numbers and ds.SCAN_NUMBER not in scan_numbers:
+        if args.scan_numbers and ds.SCAN_NUMBER not in ags.scan_numbers:
             continue
 
-        if respect_flag_row is False:
+        if args.respect_flag_row is False:
             ds = ds.assign(FLAG_ROW=(("row",), ds.FLAG.data.all(axis=(1, 2))))
 
         spw = ddid_ds.SPECTRAL_WINDOW_ID.values[ds.DATA_DESC_ID]
-        ds = ds.assign(REF_FREQ=((), spw_ds[spw].REF_FREQUENCY.data[0]),
-                       CHAN_WIDTH=(("chan",), spw_ds[spw].CHAN_WIDTH.data[0]),
+        ds = ds.assign(CHAN_WIDTH=(("chan",), spw_ds[spw].CHAN_WIDTH.data[0]),
                        CHAN_FREQ=(("chan",), spw_ds[spw].CHAN_FREQ.data[0]))
 
         dv = ds.data_vars
 
         # Default kwargs.
-        kwargs = {'decorrelation': decorrelation,
-                  'max_fov': max_fov,
-                  'min_nchan': min_nchan,
+        kwargs = {'decorrelation': args.decorrelation,
+                  'max_fov': args.max_fov,
+                  'time_bin_secs': args.time_bin_secs,
+                  'min_nchan': args.min_nchan,
                   'format': 'ragged'}
 
         try:
-            kwargs['vis'] = dv[viscolumn].data
+            kwargs['vis'] = dv[args.data_column].data
         except KeyError:
             raise ValueError("Visibility column %s not present" % viscolumn)
 
         # Other columns with directly transferable names
         columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',
                    'UVW', 'FLAG', 'WEIGHT_SPECTRUM', 'SIGMA_SPECTRUM',
-                   'REF_FREQ', 'CHAN_WIDTH', 'CHAN_FREQ']
+                   'CHAN_WIDTH', 'CHAN_FREQ']
 
         for c in columns:
             try:
@@ -345,7 +327,7 @@ def bda_average_main(main_ds,
                                         ds.FIELD_ID,
                                         ds.DATA_DESC_ID,
                                         ds.SCAN_NUMBER,
-                                        group_row_chunks))
+                                        args.group_row_chunks))
 
     return output_ds
 

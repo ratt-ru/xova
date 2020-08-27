@@ -214,6 +214,12 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
     for each dataset that prevents binning unique times in
     separate chunks.
     """
+
+    # If nothing was supplied here, this will disable aggregation
+    # of rows in seconds
+    if time_bin_secs is None:
+        time_bin_secs = -1.0
+
     # Calculate (utime, idx, counts) tuple for each dataset
     # then tranpose to get lists for each tuple entry
     if len(datasets) == 0:
