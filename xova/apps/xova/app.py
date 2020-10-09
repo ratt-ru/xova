@@ -144,7 +144,8 @@ class Application(object):
     def _derive_row_chunking(self, args):
         datasets = xds_from_ms(args.ms, group_cols=GROUP_COLS,
                                columns=["TIME", "INTERVAL"],
-                               chunks={'row': args.row_chunks})
+                               chunks={'row': args.row_chunks},
+                               taql_where=args.taql_where)
 
         return dataset_chunks(datasets, args.time_bin_secs, args.row_chunks)
 
@@ -156,7 +157,8 @@ class Application(object):
         main_ds, tabkw = xds_from_ms(args.ms,
                                      group_cols=GROUP_COLS,
                                      table_keywords=True,
-                                     chunks=chunks)
+                                     chunks=chunks,
+                                     taql_where=args.taql_where)
 
         # Figure out non SPW + SORTED sub-tables to just copy
         subtables = {k for k, v in tabkw.items() if

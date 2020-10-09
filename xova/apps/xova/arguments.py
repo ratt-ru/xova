@@ -104,9 +104,14 @@ def create_parser():
                        help="Respects FLAG_ROW instead of overriding the "
                             "column values with a np.all(FLAG, axis=(1,2)) "
                             "reduction.")
-        p.add_argument("-dc", "--data-column", default="CORRECTED_DATA",
-                       type=str,
-                       help="Column to average. Default CORRECTED_DATA")
+        p.add_argument("-dc", "--data-column", default=["CORRECTED_DATA:DATA"],
+                       type=str, nargs="+",
+                       help="Column(s) to average. Default CORRECTED_DATA:DATA")
+
+        p.add_argument("--include-auto-correlations", action="store_true",
+                       default=False,
+                       help="Auto-correlations are removed from the output "
+                            "by default. Set this to include them.")
 
     # Time channel specific args
     tc_parser.add_argument("-t", "--time-bin-secs", default=2.0, type=float,
@@ -147,44 +152,48 @@ def log_args(args):
     elif args.command == "bda":
         logger.info("Baseline-Dependant Time and Channel Averaging")
     elif args.command == "check":
-        logger.info("Checking MS conformance of {ms}", ms=args.ms)
+        logger.info(f"Checking MS conformance of {args.ms}")
         return
 
-    logger.info("\tAveraging '{ms}' to '{out}'", ms=args.ms, out=args.output)
+    logger.info(f"\tAveraging '{args.ms}' "
+                f"to '{args.output}'")
 
     if args.command == "timechannel":
-        logger.info("\tAveraging {tbs} seconds together",
-                    tbs=args.time_bin_secs)
-        logger.info("\tAveraging {cbs} channels together",
-                    cbs=args.chan_bin_size)
+        logger.info(f"\tAveraging {args.time_bin_secs} seconds together")
+        logger.info(f"\tAveraging {args.chan_bin_size} "
+                    f"channels together")
     elif args.command == "bda":
-        logger.info("\tAcceptable decorrelation factor {dcf}",
-                    dcf=args.decorrelation)
+        logger.info(f"\tAcceptable decorrelation factor "
+                    f"{args.decorrelation}")
 
         if args.time_bin_secs is not None:
-            logger.info("\tAveraging {tbs} seconds together",
-                        tbs=args.time_bin_secs)
+            logger.info(f"\tAveraging {args.time_bin_secs} seconds together")
 
-        logger.info("\tMaximum Field of View {fov} degrees", fov=args.max_fov)
-        logger.info("\tMinimum number of channels in output {mc}. "
-                    "This will be rounded up to the nearest "
-                    "integer factorisation of the "
-                    "number of input channels",
-                    mc=args.min_nchan)
+        logger.info(f"\tMaximum Field of View {args.max_fov} degrees")
+        logger.info(f"\tMinimum number of channels in "
+                    f"output {args.min_nchan}. "
+                    f"This will be rounded up to the nearest "
+                    f"integer factorisation of the "
+                    f"number of input channels")
 
-    logger.info("\tAveraging column '{col}' into 'DATA'",
-                col=args.data_column)
+    for from_column, to_column in args.data_column.items():
+        logger.info(f"\tAveraging {from_column} into {to_column}")
 
-    logger.info("\tApproximately {rc} rows will be averaged "
-                "as independent chunks. Unique times will not be "
-                "split across chunks.", rc=args.row_chunks)
+    logger.info(f"\tApproximately {args.row_chunks} rows will be averaged "
+                f"as independent chunks. Unique times will not be "
+                f"split across chunks.")
 
     if args.group_row_chunks:
-        logger.info("\tGrouping {rc} averaged row chunks "
-                    "together for writing", rc=args.group_row_chunks)
+        logger.info(f"\tGrouping {args.group_row_chunks} "
+                    f"averaged row chunks together for writing")
+
+    if arg.include_auto_correlatinos:
+        logger.info("\t Including Auto-Correlations")
+    else:
+        logger.warn("\t Discarding Auto-Correlations")
 
     if args.force is True:
-        logger.warning("\tOverwriting '{output}'", output=args.output)
+        logger.warning(f"\tOverwriting '{args.output}'")
 
     if args.respect_flag_row is True:
         logger.info("\tRespecting FLAG_ROW values")
@@ -197,6 +206,9 @@ def postprocess_args(args):
     if args.command == "check":
         return args
 
+    args.taql_where = ("" if args.include_auto_correlations
+                       else "ANTENNA1 != ANTENNA2")
+
     # Create output if not specified
     if args.output is None:
         path, msname = os.path.split(args.ms.rstrip(os.sep))
@@ -205,6 +217,23 @@ def postprocess_args(args):
             args.output = os.path.join(path, msname[:-3] + "_averaged.ms")
         else:
             args.output = os.path.join(path, msname + "_averaged.ms")
+
+    data_column_map = {}
+
+    for column in args.data_column:
+        csplit = column.split(":")
+
+        if len(csplit) == 2:
+            from_column, to_column = csplit
+        elif len(csplit) == 1:
+            from_column = to_column = csplit[0]
+        else:
+            raise ValueError(f"Invalid data columns: {args.data_column}")
+
+        data_column_map[from_column] = to_column
+
+    args.data_column = data_column_map
+
 
     return args
 

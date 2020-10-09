@@ -143,9 +143,18 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
         "WEIGHT": (("row", "corr"), avg.weight),
         "SIGMA": (("row", "corr"), avg.sigma),
 
-        "DATA": (("row", "chan", "corr"), avg.vis),
+#        "DATA": (("row", "chan", "corr"), avg.vis),
         "FLAG": (("row", "chan", "corr"), avg.flag),
     }
+
+    if avg.vis is not None:
+        if type(avg.vis) is dict:
+            for column, data in avg.vis.items():
+                out_ds[column] = (("row", "chan", "corr"), data)
+        elif isinstance(avg.vis, da.Array):
+            out_ds["DATA"] = (("row", "chan", "corr"), avg.vis)
+        else:
+            raise TypeError(f"Unknown visibility type {type(avg.vis)}")
 
     if hasattr(avg, "num_chan"):
         out_ds['NUM_CHAN'] = (("row",), avg.num_chan)
@@ -220,8 +229,10 @@ def average_main(main_ds, field_ds,
         kwargs = {'time_bin_secs': time_bin_secs,
                   'chan_bin_size': chan_bin_size}
 
+        from_column, to_column = zip(*viscolumn.items())
+
         try:
-            kwargs['vis'] = dv[viscolumn].data
+            kwargs['vis'] = tuple(dv[dc].data for dc in from_column)
         except KeyError:
             raise ValueError("Visibility column %s not present" % viscolumn)
 
@@ -241,6 +252,10 @@ def average_main(main_ds, field_ds,
                                dv['ANTENNA1'].data,
                                dv['ANTENNA2'].data,
                                **kwargs)
+
+        avg_dict = avg._asdict()
+        avg_dict['vis'] = dict(zip(to_column, avg.vis))
+        avg = avg.__class__(*avg_dict.values())
 
         output_ds.append(output_dataset(avg,
                                         ds.FIELD_ID,
@@ -300,10 +315,12 @@ def bda_average_main(main_ds,
                   'min_nchan': args.min_nchan,
                   'format': 'ragged'}
 
+        from_cols, to_cols = zip(*args.data_column.items())
+
         try:
-            kwargs['vis'] = dv[args.data_column].data
+            kwargs['visibilities'] = tuple(dv[fc].data for fc in from_cols)
         except KeyError:
-            raise ValueError("Visibility column %s not present" % viscolumn)
+            raise ValueError(f"Some of {from_cols} are not present")
 
         # Other columns with directly transferable names
         columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',
@@ -322,6 +339,10 @@ def bda_average_main(main_ds,
                   dv['ANTENNA1'].data,
                   dv['ANTENNA2'].data,
                   **kwargs)
+
+        avg_dict = avg._asdict()
+        avg_dict['vis'] = dict(zip(to_cols, avg.vis))
+        avg = avg.__class__(*avg_dict.values())
 
         output_ds.append(output_dataset(avg,
                                         ds.FIELD_ID,
