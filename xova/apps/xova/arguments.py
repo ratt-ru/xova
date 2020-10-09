@@ -188,9 +188,9 @@ def log_args(args):
                     f"averaged row chunks together for writing")
 
     if args.include_auto_correlations:
-        logger.info("\t Including Auto-Correlations")
+        logger.info("\tIncluding Auto-Correlations")
     else:
-        logger.warning("\t Discarding Auto-Correlations")
+        logger.warning("\tDiscarding Auto-Correlations")
 
     if args.force is True:
         logger.warning(f"\tOverwriting '{args.output}'")
