@@ -156,8 +156,9 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
         else:
             raise TypeError(f"Unknown visibility type {type(avg.vis)}")
 
-    if hasattr(avg, "num_chan"):
-        out_ds['NUM_CHAN'] = (("row",), avg.num_chan)
+    if hasattr(avg, "offsets"):
+        num_chan = da.map_blocks(np.diff, avg.offsets)
+        out_ds['NUM_CHAN'] = (("row",), num_chan)
 
     if hasattr(avg, "decorr_chan_width"):
         out_ds['DECORR_CHAN_WIDTH'] = (("row",), avg.decorr_chan_width)
