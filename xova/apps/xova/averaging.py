@@ -506,8 +506,8 @@ def ddid_and_spw_factory(chan_freqs, chan_widths,
 
         bandwidth = chan_widths[spw].sum()  # Maybe TOTAL_BANDWIDTH?
         cw = np.full(nchan, bandwidth / nchan)
-        cf = np.linspace(start - cw[0] / 2,
-                         end + cw[-1] / 2,
+        cf = np.linspace(start + cw[0] / 2,
+                         end - cw[-1] / 2,
                          nchan)
 
         key = "r%d" % rowid
