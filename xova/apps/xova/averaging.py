@@ -297,7 +297,7 @@ def bda_average_main(main_ds,
         if args.fields and ds.FIELD_ID not in args.fields:
             continue
 
-        if args.scan_numbers and ds.SCAN_NUMBER not in ags.scan_numbers:
+        if args.scan_numbers and ds.SCAN_NUMBER not in args.scan_numbers:
             continue
 
         if args.respect_flag_row is False:

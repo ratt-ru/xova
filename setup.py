@@ -14,13 +14,11 @@ requirements = [
     # Depend on actual releases once this branch is merged
     'codex-africanus[dask]'
     '@git+https://github.com/ska-sa/codex-africanus.git'
-    '@time-and-channel-bda',
+    '@master',
 
     # TODO(sjperkins)
     # Depend on actual releases
-    'dask-ms'
-    '@git+https://github.com/ska-sa/dask-ms.git'
-    '@master',
+    'dask-ms >= 0.2.6',
 
     'loguru']
 
@@ -28,9 +26,6 @@ extras_require = {
     'testing': ['pytest', 'pytest-flake8']
 }
 
-setup_requirements = ['pytest-runner', ]
-
-test_requirements = ['pytest', ]
 
 setup(
     author="Simon Perkins",
@@ -59,9 +54,6 @@ setup(
     name='xova',
     packages=find_packages(),
     python_requires=">=3.6",
-    setup_requires=setup_requirements,
-    test_suite='tests',
-    tests_require=test_requirements,
     url='https://github.com/ska-sa/xova',
     version='0.1.1',
     zip_safe=False,
