@@ -112,6 +112,12 @@ def create_parser():
                        default=False,
                        help="Auto-correlations are removed from the output "
                             "by default. Set this to include them.")
+        p.add_argument("--average-uvw-coordinates", action="store_true",
+                       default=False,
+                       help="Skips recomputation of uvw coordinates at new time "
+                            "centroids. This could be faster on small arrays "
+                            "but is highly discouraged since your uvw coordinates "
+                            "will be approximated by simple weighted Euclidian mean")
 
     # Time channel specific args
     tc_parser.add_argument("-t", "--time-bin-secs", default=2.0, type=float,

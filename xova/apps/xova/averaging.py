@@ -233,10 +233,10 @@ def average_main(main_ds, field_ds,
         from_column, to_column = zip(*viscolumn.items())
 
         try:
-            kwargs['vis'] = tuple(dv[dc].data for dc in from_column)
+            kwargs['visibilities'] = tuple(dv[dc].data for dc in from_column)
         except KeyError:
             raise ValueError("Visibility column %s not present" % viscolumn)
-
+        
         # Other columns with directly transferable names
         columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',
                    'UVW', 'FLAG', 'WEIGHT_SPECTRUM', 'SIGMA_SPECTRUM']

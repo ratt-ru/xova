@@ -26,7 +26,7 @@ from xova.apps.xova.averaging import (average_main,
 from xova.apps.xova.check import check_ms
 from xova.apps.xova.chunking import dataset_chunks
 from xova.apps.xova.subtables import copy_subtables
-
+from xova.apps.xova.fixvis import fixms
 
 GROUP_COLS = ["FIELD_ID", "DATA_DESC_ID", "SCAN_NUMBER"]
 
@@ -108,6 +108,12 @@ class Application(object):
         copy_subtables(args.ms, args.output, subtables)
 
         self._execute_graph(main_writes, spw_writes, ddid_writes)
+        if not args.average_uvw_coordinates:
+            fixms(args.output)
+        else:
+            logger.warning("Applying approximation to uvw coordinates as you requested - "
+                           "the spatial frequencies of your long baseline data may be "
+                           "serverely affected!")
 
     def _execute_graph(self, *writes):
         # Set up Profilers and Progress Bars
