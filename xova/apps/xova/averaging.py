@@ -147,14 +147,14 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
         "FLAG": (("row", "chan", "corr"), avg.flag),
     }
 
-    if avg.vis is not None:
-        if type(avg.vis) is dict:
-            for column, data in avg.vis.items():
+    if avg.visibilities is not None:
+        if type(avg.visibilities) is dict:
+            for column, data in avg.visibilities.items():
                 out_ds[column] = (("row", "chan", "corr"), data)
-        elif isinstance(avg.vis, da.Array):
-            out_ds["DATA"] = (("row", "chan", "corr"), avg.vis)
+        elif isinstance(avg.visibilities, da.Array):
+            out_ds["DATA"] = (("row", "chan", "corr"), avg.visibilities)
         else:
-            raise TypeError(f"Unknown visibility type {type(avg.vis)}")
+            raise TypeError(f"Unknown visibility type {type(avg.visibilities)}")
 
     if hasattr(avg, "offsets"):
         num_chan = da.map_blocks(np.diff, avg.offsets)
@@ -236,7 +236,7 @@ def average_main(main_ds, field_ds,
             kwargs['visibilities'] = tuple(dv[dc].data for dc in from_column)
         except KeyError:
             raise ValueError("Visibility column %s not present" % viscolumn)
-        
+
         # Other columns with directly transferable names
         columns = ['FLAG_ROW', 'TIME_CENTROID', 'EXPOSURE', 'WEIGHT', 'SIGMA',
                    'UVW', 'FLAG', 'WEIGHT_SPECTRUM', 'SIGMA_SPECTRUM']
@@ -342,8 +342,8 @@ def bda_average_main(main_ds,
                   **kwargs)
 
         avg_dict = avg._asdict()
-        avg_dict['vis'] = dict(zip(to_cols, avg.vis))
-        avg = avg.__class__(*avg_dict.values())
+        avg_dict['visibilities'] = dict(zip(to_cols, avg.visibilities))
+        avg = avg.__class__(**avg_dict)
 
         output_ds.append(output_dataset(avg,
                                         ds.FIELD_ID,
