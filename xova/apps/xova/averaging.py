@@ -62,7 +62,9 @@ def row_concatenate(array, group_every=4):
     group_every = min(len(array.chunks[0]), group_every)
     data = partial_reduce(_safe_concatenate, array,
                           split_every={0: group_every},
-                          reduced_meta=None, keepdims=True)
+                          reduced_meta=None,
+                          keepdims=True,
+                          dtype=array.dtype)
 
     # NOTE(sjperkins)
     # partial_reduce sets the number of rows in each chunk
@@ -255,7 +257,7 @@ def average_main(main_ds, field_ds,
                                **kwargs)
 
         avg_dict = avg._asdict()
-        avg_dict['vis'] = dict(zip(to_column, avg.vis))
+        avg_dict['visibilities'] = dict(zip(to_column, avg.visibilities))
         avg = avg.__class__(*avg_dict.values())
 
         output_ds.append(output_dataset(avg,
