@@ -140,10 +140,9 @@ class Application(object):
                 profilers.append(stack.enter_context(CacheProfiler()))
                 profilers.append(stack.enter_context(ResourceProfiler()))
 
-            if sys.stdout.isatty():
+            if sys.stdout.isatty() and not self.args.boring:
                 from dask.diagnostics import ProgressBar
                 stack.enter_context(ProgressBar())
-
             dask.compute(*writes, scheduler='single-threaded')
             logger.info("Averaging Complete")
 

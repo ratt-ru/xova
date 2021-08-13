@@ -487,10 +487,11 @@ def ddid_and_spw_factory(chan_freqs, chan_widths,
                                         axis=0)
 
     # Sanity checks
-    if not all(np.all(np.diff(cf) > 0.0) for cf in chan_freqs):
+    if not (all(cf.size >= 1 for cf in chan_freqs) and all(cw.size >= 1 for cw in chan_widths)):
+        raise ValueError("No SPW may be empty")
+    if not all(np.all(np.diff(cf) > 0.0 if cf.size > 1 else [True]) for cf in chan_freqs):
         raise ValueError("Decreasing CHAN_FREQ unsupported")
-
-    if not all(np.all(cw[0] == c for c in cw) for cw in chan_widths):
+    if not all(np.all(cw[0] == c for c in (cw if cw.size > 1 else cw.reshape(1))) for cw in chan_widths):
         raise ValueError("Heterogenous CHAN_WIDTH unsupported")
 
     rowid = 0
@@ -503,10 +504,12 @@ def ddid_and_spw_factory(chan_freqs, chan_widths,
 
     # Generate SPW's for each channelisation
     for spw, nchan in uspw_chan_map:
-        start = chan_freqs[spw][0] - chan_widths[spw][0] / 2
-        end = chan_freqs[spw][-1] + chan_widths[spw][-1] / 2
+        cf = chan_freqs[spw] if chan_freqs[spw].size > 1 else chan_freqs[spw].reshape(1)
+        cw = chan_widths[spw] if chan_widths[spw].size > 1 else chan_widths[spw].reshape(1)
+        start = cf[0] - cw[0] / 2
+        end = cf[-1] + cw[-1] / 2
 
-        bandwidth = chan_widths[spw].sum()  # Maybe TOTAL_BANDWIDTH?
+        bandwidth = cw.sum()  # Maybe TOTAL_BANDWIDTH?
         cw = np.full(nchan, bandwidth / nchan)
         cf = np.linspace(start + cw[0] / 2,
                          end - cw[-1] / 2,

@@ -2,7 +2,6 @@
 # noqa: E501
 
 from xova.apps.xova.fixvis import (synthesize_uvw,
-                                   antenna_indicies,
                                    dense2sparce_uvw)
 import numpy as np
 import time
@@ -47,7 +46,8 @@ def test_synthesize_uvw():
     ntime = 50
     padded_a1 = np.empty((nbl), dtype=np.int32)
     padded_a2 = np.empty((nbl), dtype=np.int32)
-    antindies = antenna_indicies(na)
+    antindies = np.stack(np.triu_indices(na, 0),
+                         axis=1)
     for bl in range(nbl):
         blants = antindies[bl]
         padded_a1[bl] = blants[0]
@@ -72,7 +72,8 @@ def test_uvw_sparse():
     ntime = 100
     padded_a1 = np.empty((nbl), dtype=np.int32)
     padded_a2 = np.empty((nbl), dtype=np.int32)
-    antindies = antenna_indicies(na)
+    antindies = np.stack(np.triu_indices(na, 0),
+                         axis=1)
     for bl in range(nbl):
         blants = antindies[bl]
         padded_a1[bl] = blants[0]

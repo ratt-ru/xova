@@ -118,6 +118,10 @@ def create_parser():
                             "centroids. This could be faster on small arrays "
                             "but is highly discouraged since your uvw coordinates "
                             "will be approximated by simple weighted Euclidian mean")
+        p.add_argument("--boring", action="store_true",
+                       default=False,
+                       help="Disables interactive tty printing, e.g. progress "
+                            "bar.")
 
     # Time channel specific args
     tc_parser.add_argument("-t", "--time-bin-secs", default=2.0, type=float,

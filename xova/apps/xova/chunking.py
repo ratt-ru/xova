@@ -261,7 +261,6 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
         counts.append(count)
         interval_avg.append(int_avg)
         monotonicity_checks.append(is_monotonic)
-
     # Work out the unique times, average intervals for those times
     # and the frequency of those times
     (ds_utime,
@@ -271,7 +270,6 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
                                             interval_avg,
                                             counts,
                                             monotonicity_checks)
-
     if not all(ds_monotonicity_checks):
         raise ValueError("TIME is not monotonically increasing. "
                          "This is required.")

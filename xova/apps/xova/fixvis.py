@@ -9,13 +9,58 @@ try:
     from loguru import logger
 except:
     from logging import log as logger
-from numba import jit
+from numba import jit, prange
 
-def antenna_indicies(na, auto_correlations=True):
-    """ Compute base antenna pairs from baseline index """
-    k = 0 if auto_correlations == True else 1
-    ant1, ant2 = np.triu_indices(na, k)
-    return np.stack([ant1, ant2], axis=1)
+class progress:
+    def __init__(self, max=100):
+        self.prevprintval = 0
+        self.value = 0
+        self.max = max
+        self.completed = False
+        print(f"{self.prevprintval}...", end="", flush=True)
+
+    def increment(self):
+        if self.completed: return
+        self.value += 1
+        if self.value * 100 / self.max - self.prevprintval >= 10:
+            self.prevprintval += 10
+            print(f"{self.prevprintval}..." if self.prevprintval < 100 else
+                  f"{self.prevprintval}",
+                  end=""  if self.prevprintval < 100 else "\n", 
+                  flush=True)
+        if self.prevprintval == 100:
+            self.completed = True
+
+def baseline_index(a1, a2, no_antennae):
+  """
+   Computes unique index of a baseline given antenna 1 and antenna 2
+   (zero indexed) as input. The arrays may or may not contain
+   auto-correlations.
+
+   There is a quadratic series expression relating a1 and a2
+   to a unique baseline index(can be found by the double difference
+   method)
+
+   Let slow_varying_index be S = min(a1, a2). The goal is to find
+   the number of fast varying terms. As the slow
+   varying terms increase these get fewer and fewer, because
+   we only consider unique baselines and not the conjugate
+   baselines)
+   B = (-S ^ 2 + 2 * S *  # Ant + S) / 2 + diff between the
+   slowest and fastest varying antenna
+
+  :param a1: array of ANTENNA_1 ids
+  :param a2: array of ANTENNA_2 ids
+  :param no_antennae: number of antennae in the array
+  :return: array of baseline ids
+  """
+  if a1.shape != a2.shape:
+    raise ValueError("a1 and a2 must have the same shape!")
+
+  slow_index = np.min(np.array([a1, a2]), axis=0)
+
+  return (slow_index * (-slow_index + (2 * no_antennae + 1))) // 2 + \
+         np.abs(a1 - a2)
 
 def dense2sparce_uvw(a1, a2, time, ddid, padded_uvw):
     """
@@ -37,28 +82,20 @@ def dense2sparce_uvw(a1, a2, time, ddid, padded_uvw):
     nbl = na * (na - 1) // 2 + na
     unique_time = np.unique(time)
     ntime = unique_time.size
-    antindices = antenna_indicies(na, auto_correlations=True)
+    antindices = np.stack(np.triu_indices(na, 0),
+                          axis=1)
     padded_time = unique_time.repeat(nbl) 
     padded_a1 = np.tile(antindices[:, 0], (1, ntime)).ravel()
     padded_a2 = np.tile(antindices[:, 1], (1, ntime)).ravel()
-
+    padded_bl = baseline_index(padded_a1, padded_a2, na)
     new_uvw = np.zeros((a1.size, 3), dtype=padded_uvw.dtype)
-    ala = np.logical_and
-    alo = np.logical_or
-
+    outbl = baseline_index(a1, a2, na)
+    p = progress(a1.size)
     for outrow in range(a1.size):
-        outt = time[outrow]
-        outa1 = a1[outrow]
-        outa2 = a2[outrow]
+        p.increment()
+        lookupt = np.argwhere(unique_time == time[outrow])
         # note: uvw same for all ddid (in m)
-        intsel = padded_time == outt
-        inblsel = alo(ala(padded_a1 == outa1,
-                          padded_a2 == outa2),
-                      ala(padded_a2 == outa1,
-                          padded_a1 == outa2))
-        insel = ala(intsel, inblsel)
-        assert np.sum(insel) == 1
-        new_uvw[outrow][:] = padded_uvw[insel]
+        new_uvw[outrow][:] = padded_uvw[lookupt * nbl + outbl[outrow], :]
 
     return new_uvw
 
@@ -102,7 +139,8 @@ def synthesize_uvw(station_ECEF, time, a1, a2,
     # keep a full uvw array for all antennae - including those
     # dropped by previous calibration and CASA splitting
     padded_uvw = np.zeros((ntime * nbl, 3), dtype=np.float64)
-    antindices = antenna_indicies(na, auto_correlations=True)
+    antindices = np.stack(np.triu_indices(na, 0),
+                          axis=1)
     padded_time = unique_time.repeat(nbl) 
     padded_a1 = np.tile(antindices[:, 0], (1, ntime)).ravel()
     padded_a2 = np.tile(antindices[:, 1], (1, ntime)).ravel()
@@ -121,8 +159,9 @@ def synthesize_uvw(station_ECEF, time, a1, a2,
     dm.do_frame(obs)
     dm.do_frame(refdir)
     dm.do_frame(epoch)
-
+    p = progress(unique_time.size)
     for ti, t in enumerate(unique_time):
+        p.increment()
         epoch = dm.epoch("UT1", quantity(t, "s"))
         dm.do_frame(epoch)
 
