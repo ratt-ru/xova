@@ -14,7 +14,7 @@ requirements = [
     # Depend on actual releases once this branch is merged
     'codex-africanus[dask]'
     '@git+https://github.com/ska-sa/codex-africanus.git'
-    '@master',
+    '@bda_timesmearing_fixes',
 
     # TODO(sjperkins)
     # Depend on actual releases
