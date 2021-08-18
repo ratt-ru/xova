@@ -160,11 +160,12 @@ class Application(object):
 
     def _derive_row_chunking(self, args):
         datasets = xds_from_ms(args.ms, group_cols=GROUP_COLS,
-                               columns=["TIME", "INTERVAL"],
+                               columns=["TIME", "INTERVAL", "UVW"],
                                chunks={'row': args.row_chunks},
                                taql_where=args.taql_where)
 
-        return dataset_chunks(datasets, args.time_bin_secs, args.row_chunks)
+        return dataset_chunks(datasets, args.time_bin_secs,
+                              args.row_chunks, bda=args.command)
 
 
     def _input_datasets(self, args, row_chunks):
