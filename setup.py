@@ -12,9 +12,7 @@ with open('README.rst') as readme_file:
 requirements = [
     # TODO(sjperkins)
     # Depend on actual releases once this branch is merged
-    'codex-africanus[dask]'
-    '@git+https://github.com/ska-sa/codex-africanus.git'
-    '@bda_timesmearing_fixes',
+    'codex-africanus[dask] >= 0.3.2',
 
     # TODO(sjperkins)
     # Depend on actual releases
