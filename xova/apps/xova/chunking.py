@@ -10,16 +10,20 @@ import numpy as np
 from loguru import logger
 
 
-def _time_interval_sum(time, interval):
+def _block_values(time, interval, uvw):
     # Work out unique times and their counts for this chunk
     utime, inv, counts = np.unique(time,
                                    return_inverse=True,
                                    return_counts=True)
 
+    uvw = uvw[0]
+    assert uvw.ndim == 2 and uvw.shape[1] == 3
+    max_uvw = (uvw**2).sum(axis=1).argmax()
+
     # Sum interval values for each unique time
     interval_sum = np.zeros(utime.shape[0], dtype=interval.dtype)
     np.add.at(interval_sum, inv, interval)
-    return utime, interval_sum, counts
+    return utime, interval_sum, counts, uvw[max_uvw, :]
 
 
 def _chunk(x_chunk, axis, keepdims):
@@ -27,39 +31,59 @@ def _chunk(x_chunk, axis, keepdims):
     return x_chunk
 
 
-def _time_int_combine(x_chunk, axis, keepdims):
+def _block_combine(x_chunk, axis, keepdims):
     """ Intermediate reduction step """
 
     # x_chunk is a (label, interval_sum, count) tuple
     if isinstance(x_chunk, tuple):
-        time, interval_sums, counts = x_chunk
+        time, interval_sums, counts, uvw = x_chunk
     # x_chunk is a list of (label, interval_sum, count) tuples
     # Transpose into lists and concatenate them
     elif isinstance(x_chunk, list):
-        time, interval_sums, counts = zip(*x_chunk)
+        time, interval_sums, counts, uvw = zip(*x_chunk)
         time = np.concatenate(time)
         interval_sums = np.concatenate(interval_sums)
         counts = np.concatenate(counts)
+        uvw = np.stack(uvw, axis=0)
     else:
         raise TypeError("Unhandled x_chunk type %s" % type(x_chunk))
 
     utime, inv = np.unique(time, return_inverse=True)
     interval_sum = np.zeros(utime.shape[0], dtype=interval_sums.dtype)
     new_counts = np.zeros(utime.shape[0], dtype=counts.dtype)
+    max_uvw = (uvw**2).sum(axis=1).argmax()
 
     np.add.at(interval_sum, inv, interval_sums)
     np.add.at(new_counts, inv, counts)
 
-    return utime, interval_sum, new_counts
+    return utime, interval_sum, new_counts, uvw[max_uvw, :]
 
 
-def _time_int_agg(x_chunk, axis, keepdims):
+def _block_agg(x_chunk, axis, keepdims):
     """ Final reduction step """
-    utime, interval_sum, counts = _time_int_combine(x_chunk, axis, keepdims)
-    return utime, counts, interval_sum / counts
+    utime, interval_sum, counts, uvw = _block_combine(x_chunk, axis, keepdims)
+    return utime, counts, interval_sum / counts, uvw
 
 
 class DatasetGrouper(object):
+    """
+    Applies a two-phase row grouping strategy.
+
+    1. Groups ``time_bin_secs`` rows together.
+    2. Then aggregates row groups from (1) until
+       ``max_row_chunks`` is reached.
+
+    Parameters
+    ----------
+    time_bin_secs : float
+        How many seconds worth of rows to aggregate.
+        -1.0 disables this feature.
+    max_row_chunks : int
+        Maximum number of rows to aggregate together,
+        *after* time_bin_secs worth of rows have been aggregated.
+        The grouper will not respect this value if a
+        time grouping exceeds ``max_row_chunks``
+    """
     def __init__(self, time_bin_secs, max_row_chunks):
         self.time_bin_secs = time_bin_secs
         self.max_row_chunks = max_row_chunks
@@ -100,7 +124,7 @@ class DatasetGrouper(object):
 
             dsit = enumerate(zip(utime[1:], avg_interval[1:], counts[1:]))
             for ti, (ut, avg_int, count) in dsit:
-                if avg_int > self.time_bin_secs:
+                if avg_int > self.time_bin_secs and self.time_bin_secs != -1.0:
                     logger.warning("The average INTERVAL associated with "
                                    "unique time {:3f} in dataset {:d} "
                                    "is {:3f} but this exceeds the requested "
@@ -190,12 +214,18 @@ class DatasetGrouper(object):
         return final_row_chunks, final_time_chunks, final_interval_secs
 
 
-def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
+def dataset_chunks(datasets, time_bin_secs, max_row_chunks, bda=False):
     """
     Given ``max_row_chunks`` determine a chunking strategy
     for each dataset that prevents binning unique times in
     separate chunks.
     """
+
+    # If nothing was supplied here, this will disable aggregation
+    # of rows in seconds
+    if time_bin_secs is None:
+        time_bin_secs = -1.0
+
     # Calculate (utime, idx, counts) tuple for each dataset
     # then tranpose to get lists for each tuple entry
     if len(datasets) == 0:
@@ -205,21 +235,23 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
     interval_avg = []
     counts = []
     monotonicity_checks = []
+    max_uvws = []
 
     for ds in datasets:
         # Compute unique times, their counts and interval sum
         # for each row chunk
-        block_values = da.blockwise(_time_interval_sum, "r",
+        block_values = da.blockwise(_block_values, "r",
                                     ds.TIME.data, "r",
                                     ds.INTERVAL.data, "r",
+                                    ds.UVW.data, "ru",
                                     meta=np.empty((0,), dtype=np.object),
                                     dtype=np.object)
 
         # Reduce each row chunk's values
         reduction = da.reduction(block_values,
                                  chunk=_chunk,
-                                 combine=_time_int_combine,
-                                 aggregate=_time_int_agg,
+                                 combine=_block_combine,
+                                 aggregate=_block_agg,
                                  concatenate=False,
                                  split_every=16,
                                  meta=np.empty((0,), dtype=np.object),
@@ -229,6 +261,7 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
         utime = reduction.map_blocks(getitem, 0, dtype=ds.TIME.dtype)
         count = reduction.map_blocks(getitem, 1, dtype=np.int32)
         int_avg = reduction.map_blocks(getitem, 2, dtype=ds.INTERVAL.dtype)
+        max_uvw = reduction.map_blocks(getitem, 3, dtype=ds.UVW.dtype)
 
         # Check monotonicity of TIME while we're at it
         is_monotonic = da.all(da.diff(ds.TIME.data) >= 0.0)
@@ -236,6 +269,7 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
         utimes.append(utime)
         counts.append(count)
         interval_avg.append(int_avg)
+        max_uvws.append(max_uvw)
         monotonicity_checks.append(is_monotonic)
 
     # Work out the unique times, average intervals for those times
@@ -243,9 +277,11 @@ def dataset_chunks(datasets, time_bin_secs, max_row_chunks):
     (ds_utime,
      ds_avg_intervals,
      ds_counts,
+     ds_max_uvw,
      ds_monotonicity_checks) = dask.compute(utimes,
                                             interval_avg,
                                             counts,
+                                            max_uvws,
                                             monotonicity_checks)
 
     if not all(ds_monotonicity_checks):
