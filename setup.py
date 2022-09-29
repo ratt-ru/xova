@@ -12,6 +12,8 @@ with open('README.rst') as readme_file:
 requirements = [
     'codex-africanus[dask] >= 0.3.2',
     'dask-ms >= 0.2.6',
+    # workaround #
+    'dask[array] <= 2021.3.0',
     'progress >= 1.6',
     'loguru']
 
