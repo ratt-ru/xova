@@ -9,4 +9,3 @@ WORKDIR /code
 
 RUN python3.8 -m pip install .[testing]
 RUN python3.8 -m pip freeze
-RUN python3.8 -m pytest --flake8 -s -vvv /code/xova
