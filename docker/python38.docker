@@ -2,7 +2,7 @@ FROM kernsuite/base:7
 
 # Install base requirements
 RUN DEBIAN_FRONTEND=noninteractive apt update -y
-RUN DEBIAN_FRONTEND=noninteractive apt install -y curl git python3-distutils python3.8 python3.8-pip python3.8-dev casacore-data
+RUN DEBIAN_FRONTEND=noninteractive apt install -y curl git python3-distutils python3.8 python3-pip python3.8-dev casacore-data
 ADD . /code
 WORKDIR /code
 
