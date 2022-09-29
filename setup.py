@@ -16,6 +16,7 @@ requirements = [
     'dask[array] <= 2021.3.0',
     'progress >= 1.6',
     'fsspec',
+    'numpy<=1.19.5',
     'loguru']
 
 extras_require = {
