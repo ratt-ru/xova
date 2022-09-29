@@ -10,14 +10,9 @@ with open('README.rst') as readme_file:
 
 
 requirements = [
-    # TODO(sjperkins)
-    # Depend on actual releases once this branch is merged
     'codex-africanus[dask] >= 0.3.2',
-
-    # TODO(sjperkins)
-    # Depend on actual releases
     'dask-ms >= 0.2.6',
-
+    'progress >= 1.6',
     'loguru']
 
 extras_require = {

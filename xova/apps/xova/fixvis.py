@@ -9,27 +9,32 @@ try:
     from loguru import logger
 except:
     from logging import log as logger
-from numba import jit, prange
+from progress.bar import FillingSquaresBar as bar
+import sys
 
-class progress:
-    def __init__(self, max=100):
-        self.prevprintval = 0
-        self.value = 0
-        self.max = max
-        self.completed = False
-        print(f"{self.prevprintval}...", end="", flush=True)
+class progress():
+    def __init__(self, *args, **kwargs):
+        """ Wraps a progress bar to check for TTY attachment 
+            otherwise does prints basic progress periodically
+        """
+        if sys.stdout.isatty():
+            self.__progress = bar(*args, **kwargs)
+        else:
+            self.__progress = None
+            self.__value = 0
+            self.__title = args[0]
+            self.__max = kwargs.get("max", 1)
+    
+    def next(self):
+        if self.__progress is None:
+            if self.__value % int(self.__max * 0.1) == 0:
+                logger.info(f"\t {self.__title} progress: "
+                            f"{self.__value *100. / self.__max:.0f}%")
+            self.__value += 1
+        else:
+            self.__progress.next()    
 
-    def increment(self):
-        if self.completed: return
-        self.value += 1
-        if self.value * 100 / self.max - self.prevprintval >= 10:
-            self.prevprintval += 10
-            print(f"{self.prevprintval}..." if self.prevprintval < 100 else
-                  f"{self.prevprintval}",
-                  end=""  if self.prevprintval < 100 else "\n", 
-                  flush=True)
-        if self.prevprintval == 100:
-            self.completed = True
+
 
 def baseline_index(a1, a2, no_antennae):
   """
@@ -77,7 +82,7 @@ def dense2sparce_uvw(a1, a2, time, ddid, padded_uvw):
     assert time.size == a1.size
     assert a1.size == a2.size
     ants = np.concatenate((a1, a2))
-    unique_ants = np.unique(ants)
+    unique_ants = np.arange(np.max(ants) + 1)
     na = unique_ants.size
     nbl = na * (na - 1) // 2 + na
     unique_time = np.unique(time)
@@ -90,9 +95,9 @@ def dense2sparce_uvw(a1, a2, time, ddid, padded_uvw):
     padded_bl = baseline_index(padded_a1, padded_a2, na)
     new_uvw = np.zeros((a1.size, 3), dtype=padded_uvw.dtype)
     outbl = baseline_index(a1, a2, na)
-    p = progress(a1.size)
+    p = progress('Copying UVW to dataset', max=a1.size)
     for outrow in range(a1.size):
-        p.increment()
+        p.next()
         lookupt = np.argwhere(unique_time == time[outrow])
         # note: uvw same for all ddid (in m)
         new_uvw[outrow][:] = padded_uvw[lookupt * nbl + outbl[outrow], :]
@@ -130,7 +135,7 @@ def synthesize_uvw(station_ECEF, time, a1, a2,
     assert a1.size == a2.size
 
     ants = np.concatenate((a1, a2))
-    unique_ants = np.unique(ants)
+    unique_ants = np.arange(np.max(ants) + 1)
     unique_time = np.unique(time)
     na = unique_ants.size
     nbl = na * (na - 1) // 2 + na
@@ -159,9 +164,9 @@ def synthesize_uvw(station_ECEF, time, a1, a2,
     dm.do_frame(obs)
     dm.do_frame(refdir)
     dm.do_frame(epoch)
-    p = progress(unique_time.size)
+    p = progress('Calculating UVW', max=unique_time.size)
     for ti, t in enumerate(unique_time):
-        p.increment()
+        p.next()
         epoch = dm.epoch("UT1", quantity(t, "s"))
         dm.do_frame(epoch)
 
