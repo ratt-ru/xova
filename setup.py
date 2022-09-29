@@ -15,6 +15,7 @@ requirements = [
     # workaround #
     'dask[array] == 2.2.0',
     'progress >= 1.6',
+    'fsspec',
     'loguru']
 
 extras_require = {
