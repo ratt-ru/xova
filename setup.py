@@ -13,7 +13,7 @@ requirements = [
     'codex-africanus[dask] >= 0.3.2',
     'dask-ms >= 0.2.6',
     # workaround #
-    'dask[array] <= 2.30.0',
+    'dask[array] == 2.2.0',
     'progress >= 1.6',
     'loguru']
 
