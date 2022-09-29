@@ -26,7 +26,7 @@ docker run \
     --workdir /code \
     --entrypoint /bin/sh \
     xova.1804.py37:${BUILD_NUMBER} \
-    -c "python3 -m pytest --flake8 -s -vvv ."
+    -c "python3.7 -m pytest --flake8 -s -vvv ."
 
 # acceptance tests
 docker run \
@@ -48,7 +48,7 @@ docker run \
     --workdir /code \
     --entrypoint /bin/sh \
     xova.2004.py38:${BUILD_NUMBER} \
-    -c "python3 -m pytest --flake8 -s -vvv ."
+    -c "python3.8 -m pytest --flake8 -s -vvv ."
 
 docker run \
     --rm \
