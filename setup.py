@@ -16,7 +16,9 @@ requirements = [
     'loguru']
 
 extras_require = {
-    'testing': ['pytest', 'pytest-flake8']
+    'testing': ['pytest',
+                'pytest-flake8',
+                'flake8 >= 4.0.0, <5.0.0']
 }
 
 
@@ -46,7 +48,7 @@ setup(
     keywords='xova',
     name='xova',
     packages=find_packages(),
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     url='https://github.com/ska-sa/xova',
     version='0.1.1',
     zip_safe=False,
