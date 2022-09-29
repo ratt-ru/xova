@@ -144,8 +144,6 @@ def output_dataset(avg, field_id, data_desc_id, scan_number,
         "UVW": (("row", "[uvw]"), avg.uvw),
         "WEIGHT": (("row", "corr"), avg.weight),
         "SIGMA": (("row", "corr"), avg.sigma),
-
-#        "DATA": (("row", "chan", "corr"), avg.vis),
         "FLAG": (("row", "chan", "corr"), avg.flag),
     }
 

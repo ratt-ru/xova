@@ -151,7 +151,7 @@ def _ms_factory_impl(ms_name):
             ms.putcol("DATA", vis, startrow=startrow, nrow=rows)
             ms.putcol("CORRECTED_DATA", vis, startrow=startrow, nrow=rows)
 
-            flag = np.random.random_integers(0, 1, size=(rows, nchan, ncorr))
+            flag = np.random.randint(0, 2, size=(rows, nchan, ncorr))
             ms.putcol("FLAG", flag, startrow=startrow, nrow=rows)
 
             flag_cat = np.zeros((rows, 1, nchan, ncorr))

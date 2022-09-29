@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# noqa: E501
+# flake8: noqa
 
 from xova.apps.xova.fixvis import (synthesize_uvw,
                                    dense2sparce_uvw)
@@ -39,6 +39,7 @@ vla_d = np.asarray(
          [-1.60127e+06, -5.04198e+06, 3.55483e+06],
          [-1.60111e+06, -5.04202e+06, 3.55484e+06],
          [-1.60115e+06, -5.04173e+06, 3.55524e+06]])
+
 
 def test_synthesize_uvw():
     na = vla_d.shape[0]
