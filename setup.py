@@ -14,7 +14,7 @@ requirements = [
     'dask-ms >= 0.2.6',
     'progress >= 1.6',
     'fsspec',
-    'numpy<=1.19.5',
+    'numpy <= 1.19.5',
     'loguru']
 
 extras_require = {

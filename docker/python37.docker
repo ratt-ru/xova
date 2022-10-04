@@ -11,3 +11,4 @@ WORKDIR /code
 
 RUN python3.7 -m pip install .[testing]
 RUN python3.7 -m pip freeze
+RUN python3.7 -m pytest --flake8 -s -vvv .
