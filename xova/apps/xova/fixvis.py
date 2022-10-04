@@ -58,6 +58,9 @@ def baseline_index(a1, a2, no_antennae):
     :param a2: array of ANTENNA_2 ids
     :param no_antennae: number of antennae in the array
     :return: array of baseline ids
+
+    Note: na must be strictly greater than max of 0-indexed
+          ANTENNA_1 and ANTENNA_2
     """
     if a1.shape != a2.shape:
         raise ValueError("a1 and a2 must have the same shape!")
@@ -68,7 +71,7 @@ def baseline_index(a1, a2, no_antennae):
         np.abs(a1 - a2)
 
 
-def dense2sparce_uvw(a1, a2, time, ddid, padded_uvw):
+def dense2sparse_uvw(a1, a2, time, ddid, padded_uvw):
     """
     Copy a dense uvw matrix onto a sparse uvw matrix
         a1: sparse antenna 1 index

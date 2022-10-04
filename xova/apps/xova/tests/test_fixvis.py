@@ -2,7 +2,7 @@
 # flake8: noqa
 
 from xova.apps.xova.fixvis import (synthesize_uvw,
-                                   dense2sparce_uvw)
+                                   dense2sparse_uvw)
 import numpy as np
 import time
 
@@ -110,7 +110,7 @@ def test_uvw_sparse():
         assert uvw_dense[c].shape[0] == nrow
         assert uvw_miss[c].shape[0] == nrow
         
-    uvw_sparse = dense2sparce_uvw(a1=miss_a1, a2=miss_a2, time=miss_timearr,
+    uvw_sparse = dense2sparse_uvw(a1=miss_a1, a2=miss_a2, time=miss_timearr,
                                   ddid=miss_ddid, padded_uvw=uvw_dense["UVW"])
     
     ala = np.logical_and
