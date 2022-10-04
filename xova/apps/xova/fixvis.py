@@ -250,7 +250,7 @@ def fixms(msname):
                                     stopctr_epoch=stopctr_epoch,
                                     posframe=posframe,
                                     posunits=posunits)
-        new_uvw[fsel] = dense2sparce_uvw(a1=a1[fsel],
+        new_uvw[fsel] = dense2sparse_uvw(a1=a1[fsel],
                                          a2=a2[fsel],
                                          time=time[fsel],
                                          ddid=ddid[fsel],
