@@ -10,8 +10,8 @@ TEST_DATA_DIR="$WORKSPACE/../../../test-data"
 
 
 # build and run basic unit tests
-docker build -f ${WORKSPACE_ROOT}/projects/xova/docker/python37.docker -t xova.1804.py37:${BUILD_NUMBER} ${WORKSPACE_ROOT}/projects/xova/
-docker build -f ${WORKSPACE_ROOT}/projects/xova/docker/python38.docker -t xova.2004.py38:${BUILD_NUMBER} ${WORKSPACE_ROOT}/projects/xova/
+docker build --no-cache=true -f ${WORKSPACE_ROOT}/projects/xova/docker/python37.docker -t xova.1804.py37:${BUILD_NUMBER} ${WORKSPACE_ROOT}/projects/xova/
+docker build --no-cache=true -f ${WORKSPACE_ROOT}/projects/xova/docker/python38.docker -t xova.2004.py38:${BUILD_NUMBER} ${WORKSPACE_ROOT}/projects/xova/
 
 #run tests
 TEST_MS_REL=1519747221.subset.ms
