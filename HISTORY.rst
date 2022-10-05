@@ -2,6 +2,11 @@
 History
 =======
 
+0.1.2 (2022-09-29)
+------------------
+* Fix minor bug in uvw regeneration for ultra-small chunk sizes where not all antennae are in the chunk
+* Make UVW regeneration progress bars better and tty dependent
+
 0.1.1 (2020-04-24)
 ------------------
 

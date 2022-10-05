@@ -10,18 +10,19 @@ with open('README.rst') as readme_file:
 
 
 requirements = [
-    # TODO(sjperkins)
-    # Depend on actual releases once this branch is merged
     'codex-africanus[dask] >= 0.3.2',
-
-    # TODO(sjperkins)
-    # Depend on actual releases
-    'dask-ms >= 0.2.6',
-
+    # breakage dask-ms 0.2.12
+    # issue 254
+    'dask-ms >= 0.2.6, != 0.2.12, != 0.2.13',
+    'progress >= 1.6',
+    'fsspec',
+    'numpy <= 1.19.5',
     'loguru']
 
 extras_require = {
-    'testing': ['pytest', 'pytest-flake8']
+    'testing': ['pytest',
+                'pytest-flake8',
+                'flake8 >= 4.0.0, <5.0.0']
 }
 
 
@@ -51,7 +52,7 @@ setup(
     keywords='xova',
     name='xova',
     packages=find_packages(),
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     url='https://github.com/ska-sa/xova',
     version='0.1.1',
     zip_safe=False,

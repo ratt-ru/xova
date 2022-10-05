@@ -1,9 +1,9 @@
-FROM kernsuite/base:5
+FROM kernsuite/base:6
 
 # Install base requirements
 RUN DEBIAN_FRONTEND=noninteractive add-apt-repository ppa:deadsnakes/ppa -y
 RUN DEBIAN_FRONTEND=noninteractive apt update -y
-RUN DEBIAN_FRONTEND=noninteractive apt install -y curl git python3-distutils python3.7 python3.7-dev
+RUN DEBIAN_FRONTEND=noninteractive apt install -y curl git python3-distutils python3.7 python3.7-dev casacore-data
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 RUN python3.7 get-pip.py
 ADD . /code
@@ -11,4 +11,4 @@ WORKDIR /code
 
 RUN python3.7 -m pip install .[testing]
 RUN python3.7 -m pip freeze
-RUN python3.7 -m pytest --flake8 -s -vvv /code/xova
+RUN python3.7 -m pytest --flake8 -s -vvv .

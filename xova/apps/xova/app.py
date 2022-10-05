@@ -3,27 +3,9 @@
 import traceback
 import warnings
 import sys
-
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
-
-    log = file if hasattr(file,'write') else sys.stderr
-    traceback.print_stack(file=log)
-    log.write(warnings.formatwarning(message, category, filename, lineno, line))
-
-warnings.showwarning = warn_with_traceback
-
 from contextlib import ExitStack
 import os
 import shutil
-import sys
-
-try:
-    import bokeh  # noqa
-except ImportError:
-    can_profile = False
-else:
-    can_profile = True
-
 import dask
 from daskms import xds_from_ms, xds_from_table, xds_to_table
 from loguru import logger
@@ -39,6 +21,24 @@ from xova.apps.xova.check import check_ms
 from xova.apps.xova.chunking import dataset_chunks
 from xova.apps.xova.subtables import copy_subtables
 from xova.apps.xova.fixvis import fixms
+
+
+def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
+    log = file if hasattr(file, 'write') else sys.stderr
+    traceback.print_stack(file=log)
+    log.write(warnings.formatwarning(message, category, filename, lineno, line))
+
+
+warnings.showwarning = warn_with_traceback
+
+
+try:
+    import bokeh  # noqa
+except ImportError:
+    can_profile = False
+else:
+    can_profile = True
+
 
 GROUP_COLS = ["FIELD_ID", "DATA_DESC_ID", "SCAN_NUMBER"]
 
@@ -166,7 +166,6 @@ class Application(object):
 
         return dataset_chunks(datasets, args.time_bin_secs,
                               args.row_chunks, bda=args.command)
-
 
     def _input_datasets(self, args, row_chunks):
         # Set up row chunks
