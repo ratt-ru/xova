@@ -11,8 +11,6 @@ with open('README.rst') as readme_file:
 
 requirements = [
     'codex-africanus[dask] >= 0.3.2',
-    # breakage dask-ms 0.2.12
-    # issue 254
     'dask-ms >= 0.2.6, != 0.2.12, != 0.2.13',
     'progress >= 1.6',
     'fsspec',
@@ -54,6 +52,6 @@ setup(
     packages=find_packages(),
     python_requires=">=3.7",
     url='https://github.com/ska-sa/xova',
-    version='0.1.1',
+    version='0.1.2',
     zip_safe=False,
 )
